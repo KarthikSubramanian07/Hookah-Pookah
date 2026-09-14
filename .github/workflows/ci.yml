@@ -58,3 +58,43 @@ jobs:
           name: playwright-report
           path: playwright-report
           retention-days: 7
+
+  deploy:
+    name: Deploy to Cloudflare Pages
+    needs: [verify, e2e]
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    concurrency:
+      group: deploy-production
+      cancel-in-progress: false
+    environment:
+      name: production
+      url: https://hookah-pookah.pages.dev
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: dist
+          path: dist
+      - name: Trigger the Pages build of main
+        env:
+          HOOK: ${{ secrets.CLOUDFLARE_DEPLOY_HOOK }}
+        run: |
+          test -n "$HOOK" || { echo "CLOUDFLARE_DEPLOY_HOOK secret is missing"; exit 1; }
+          curl -fsS -X POST "$HOOK" | grep -q '"success":true'
+      - name: Wait until production serves this commit's bundle
+        run: |
+          expected=$(grep -o 'assets/index-[A-Za-z0-9_-]*\.js' dist/index.html | head -1)
+          echo "Expecting $expected"
+          for i in $(seq 1 50); do
+            live=$(curl -fsS "https://hookah-pookah.pages.dev/holdem?cachebust=$GITHUB_SHA-$i" | grep -o 'assets/index-[A-Za-z0-9_-]*\.js' | head -1 || true)
+            if [ "$live" = "$expected" ]; then echo "Live on $live"; exit 0; fi
+            sleep 15
+          done
+          echo "Production still serves ${live:-nothing}"; exit 1
+      - name: Smoke test production
+        run: |
+          for path in / /holdem /short-deck /plo /plo5 /robots.txt /sitemap.xml /og.png; do
+            code=$(curl -s -o /dev/null -w '%{http_code}' "https://hookah-pookah.pages.dev$path")
+            echo "$path $code"; test "$code" = 200
+          done
