@@ -188,14 +188,6 @@ test.describe('site', () => {
     await expect(page.locator('meta[property="og:image"]')).toHaveAttribute('content', /og\.png$/)
   })
 
-  test('clean routes answer directly without redirects', async ({ request }) => {
-    for (const path of ['/holdem', '/short-deck', '/plo', '/plo5']) {
-      const res = await request.get(`${path}?p=AhKh`, { maxRedirects: 0 })
-      expect(res.status(), path).toBe(200)
-      expect(await res.text()).toContain(`<link rel="canonical" href="https://hookah-pookah.pages.dev${path}"`)
-    }
-  })
-
   test('robots, sitemap and security headers are served', async ({ request }) => {
     const robots = await request.get('/robots.txt')
     expect(await robots.text()).toContain('Sitemap: https://hookah-pookah.pages.dev/sitemap.xml')

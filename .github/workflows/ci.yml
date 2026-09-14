@@ -81,7 +81,7 @@ jobs:
           HOOK: ${{ secrets.CLOUDFLARE_DEPLOY_HOOK }}
         run: |
           test -n "$HOOK" || { echo "CLOUDFLARE_DEPLOY_HOOK secret is missing"; exit 1; }
-          curl -fsS -X POST "$HOOK" | grep -q '"success":true'
+          curl -fsS -X POST "$HOOK" | grep -Eq '"success": *true'
       - name: Wait until production serves this commit's bundle
         run: |
           expected=$(grep -o 'assets/index-[A-Za-z0-9_-]*\.js' dist/index.html | head -1)
