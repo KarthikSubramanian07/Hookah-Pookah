@@ -178,3 +178,34 @@ describe('quick spot', () => {
     expect(parseQuickSpot('AsAhKsKh vs QQ+', defaultSpot('omaha4')).error).toMatch(/ranges are Hold'em/)
   })
 })
+
+describe('display precision', async () => {
+  const { decimalsFor, odds, compact, duration, pct } = await import('../src/ui/format.ts')
+  it('only shows digits the interval supports', () => {
+    const mc = { method: 'montecarlo' as const }
+    const se = (hw: number) => hw / 100 / 1.959964
+    expect(decimalsFor({ method: 'exact' }, 0)).toBe(2)
+    expect(decimalsFor(mc, se(0.5))).toBe(1)
+    expect(decimalsFor(mc, se(0.099))).toBe(1)
+    expect(decimalsFor(mc, se(0.02))).toBe(2)
+    expect(decimalsFor(mc, se(0.001))).toBe(3)
+    expect(decimalsFor(mc, se(3))).toBe(0)
+    expect(decimalsFor(mc, 0)).toBe(1)
+  })
+  it('formats odds and quantities', () => {
+    expect(odds(0.2)).toBe('4.0 : 1')
+    expect(odds(0.8)).toBe('1 : 4.0')
+    expect(odds(0.04)).toBe('24 : 1')
+    expect(odds(0)).toBe('never')
+    expect(odds(1)).toBe('always')
+    expect(compact(1_712_304)).toBe('1.7M')
+    expect(compact(25_000_000)).toBe('25M')
+    expect(compact(2_100_000_000)).toBe('2.1B')
+    expect(compact(15_400)).toBe('15K')
+    expect(compact(950)).toBe('950')
+    expect(duration(0.2)).toBe('1 ms')
+    expect(duration(1530)).toBe('1.5 s')
+    expect(duration(15_300)).toBe('15 s')
+    expect(pct(0.41429, 2)).toBe('41.43%')
+  })
+})
