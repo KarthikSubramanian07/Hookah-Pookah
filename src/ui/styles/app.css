@@ -1870,6 +1870,15 @@ details.potodds[open] > summary::after {
   white-space: nowrap;
 }
 
+/* Your hand: the Clear action joins the step heading row instead of taking a row of its own. */
+.step {
+  position: relative;
+}
+
 .player.is-hero .player-head {
-  min-height: 1.875rem;
+  position: absolute;
+  top: var(--s4);
+  right: var(--s4);
+  min-height: 0;
+  margin: 0;
 }
