@@ -142,13 +142,12 @@ node scripts/gen-og.ts                # social card and icons, with live engine 
 
 ## Deploy
 
-The site is static and deploys to Cloudflare Pages as project `hookah-pookah`:
+Zero touch. The site is static and lives on Cloudflare Pages as project `hookah-pookah`, connected to this repository.
 
-```bash
-pnpm deploy
-```
+1. Every push and pull request runs lint, typecheck, unit tests with coverage, the build, and the Playwright suite against the production build on the Pages runtime.
+2. When `main` is green, the `deploy` job calls the project's Pages deploy hook (secret `CLOUDFLARE_DEPLOY_HOOK`), waits until [hookah-pookah.pages.dev](https://hookah-pookah.pages.dev) serves the exact bundle CI built, and smoke tests every route.
 
-GitHub Actions runs lint, typecheck, unit tests, the build and the Playwright suite on every push and pull request, and deploys `main` to Cloudflare Pages when the `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID` secrets are present.
+Manual deploys still work with `pnpm deploy` (wrangler direct upload).
 
 ## Credits
 
