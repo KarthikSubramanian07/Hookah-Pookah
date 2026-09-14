@@ -9,7 +9,6 @@ const initial = (): SpotState => ({ spot: defaultSpot('holdem'), past: [], futur
 describe('spot reducer', () => {
   it('moves a card from its previous owner instead of duplicating it', () => {
     const spot = defaultSpot('holdem')
-    spot.players[1].mode = 'cards'
     const next = applyAction(spot, { type: 'card', ref: { kind: 'board', slot: 0 }, card: parseCard('Ah') })
     expect(next.board[0]).toBe(parseCard('Ah'))
     expect(next.players[0].cards).toEqual([null, parseCard('Kh')])
@@ -93,7 +92,7 @@ describe('spot reducer', () => {
     s = spotReducer(s, { type: 'undo' })
     expect(s.spot.board[0]).toBeNull()
     s = spotReducer(s, { type: 'undo' })
-    expect(s.spot.players[1].range).toBe('QQ+, AKs, AKo')
+    expect(s.spot.players[1].range).toBe('')
     expect(spotReducer(s, { type: 'undo' })).toBe(s)
     s = spotReducer(s, { type: 'redo' })
     s = spotReducer(s, { type: 'redo' })

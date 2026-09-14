@@ -25,22 +25,25 @@ export function PotOdds({ result, heroLabel }: Props) {
 
   let verdict: { text: string; tone: 'better' | 'worse' | 'even' } | undefined
   if (required !== undefined && hero) {
-    if (hero.equity - margin > required) verdict = { text: 'Profitable call', tone: 'better' }
-    else if (hero.equity + margin < required) verdict = { text: 'Losing call', tone: 'worse' }
+    if (hero.equity - margin > required) verdict = { text: 'Calling makes money in the long run', tone: 'better' }
+    else if (hero.equity + margin < required) verdict = { text: 'Calling loses money in the long run', tone: 'worse' }
     else verdict = { text: 'Too close to call', tone: 'even' }
   }
 
   return (
-    <section className="potodds" aria-labelledby={`${id}-title`}>
-      <div className="section-head">
+    <details className="potodds">
+      <summary className="section-head disclosure">
         <h2 id={`${id}-title`} className="section-title">
-          Pot odds
+          Should I call?
         </h2>
-        <span className="section-note">for {heroLabel.toLowerCase()} facing a bet, ignoring future streets</span>
-      </div>
+        <span className="section-note">compare the price of a call with your chance to win</span>
+      </summary>
+      <p className="section-lede">
+        Enter the pot (including the bet {heroLabel === 'You' ? 'you face' : `${heroLabel} faces`}) and the amount to call. This checks the current bet only and ignores future betting.
+      </p>
       <div className="potodds-grid">
         <label className="field">
-          <span className="label">Pot including the bet</span>
+          <span className="label">Pot</span>
           <input className="input mono" inputMode="decimal" value={pot} onChange={(e) => setPot(e.target.value)} aria-invalid={!valid ? 'true' : undefined} />
         </label>
         <label className="field">
@@ -48,15 +51,15 @@ export function PotOdds({ result, heroLabel }: Props) {
           <input className="input mono" inputMode="decimal" value={call} onChange={(e) => setCall(e.target.value)} aria-invalid={!valid ? 'true' : undefined} />
         </label>
         <div className="potodds-out">
-          <span className="label">Needs</span>
+          <span className="label">You need</span>
           <span className="mono potodds-num">{required !== undefined ? pct(required, 1) : '·'}</span>
         </div>
         <div className="potodds-out">
-          <span className="label">Has</span>
+          <span className="label">You have</span>
           <span className="mono potodds-num">{hero ? pct(hero.equity, 1) : '·'}</span>
         </div>
         <div className="potodds-out">
-          <span className="label">EV of calling</span>
+          <span className="label" title="Average chips won or lost by calling, over many repeats">Average result</span>
           <span className={`mono potodds-num ${ev !== undefined ? (ev >= 0 ? 'is-better' : 'is-worse') : ''}`}>
             {ev !== undefined ? `${ev >= 0 ? '+' : ''}${ev.toFixed(1)}` : '·'}
           </span>
@@ -67,6 +70,6 @@ export function PotOdds({ result, heroLabel }: Props) {
           {verdict.text}
         </p>
       )}
-    </section>
+    </details>
   )
 }

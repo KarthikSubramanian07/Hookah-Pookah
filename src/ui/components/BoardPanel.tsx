@@ -6,6 +6,8 @@ import { focusNextSlot } from '../dom.ts'
 import { CardSlot } from './CardSlot.tsx'
 
 interface Props {
+  step: number
+  advanced: boolean
   variant: VariantId
   board: (Card | null)[]
   dead: Card[]
@@ -47,34 +49,53 @@ export function BoardPanel(props: Props) {
   return (
     <section className="board" aria-labelledby="board-title">
       <div className="section-head">
-        <h2 id="board-title" className="section-title">
-          Board
+        <h2 id="board-title" className="section-title step-title">
+          <span className="step-number mono" aria-hidden="true">
+            {props.step}
+          </span>
+          Board <span className="step-optional">optional</span>
         </h2>
         <div className="section-actions">
-          <button type="button" className="btn btn-ghost btn-sm" onClick={() => props.onDeal(3)} disabled={filled >= 3}>
-            Deal flop
-          </button>
-          <button type="button" className="btn btn-ghost btn-sm" onClick={() => props.onDeal(filled >= 3 ? ((filled + 1) as 4 | 5) : 5)} disabled={filled >= 5}>
-            {filled >= 4 ? 'Deal river' : filled === 3 ? 'Deal turn' : 'Deal all'}
-          </button>
+          {filled < 3 && (
+            <button type="button" className="btn btn-ghost btn-sm" onClick={() => props.onDeal(3)}>
+              Random flop
+            </button>
+          )}
+          {filled >= 3 && filled < 5 && (
+            <button type="button" className="btn btn-ghost btn-sm" onClick={() => props.onDeal((filled + 1) as 4 | 5)}>
+              {filled === 3 ? 'Random turn' : 'Random river'}
+            </button>
+          )}
           <button type="button" className="btn btn-ghost btn-sm" onClick={props.onClearBoard} disabled={filled === 0}>
             Clear
           </button>
         </div>
       </div>
       <div className="board-streets">
-        <div className="street" role="group" aria-label="Flop">
-          {[0, 1, 2].map((i) => slot({ kind: 'board', slot: i }, `b-${i}`, 'board', board[i], `${STREETS[i]} card ${i + 1}`))}
-        </div>
-        <div className="street" role="group" aria-label="Turn">
-          {slot({ kind: 'board', slot: 3 }, 'b-3', 'board', board[3], 'Turn')}
-        </div>
-        <div className="street" role="group" aria-label="River">
-          {slot({ kind: 'board', slot: 4 }, 'b-4', 'board', board[4], 'River')}
-        </div>
+        <figure className="street-group">
+          <div className="street" role="group" aria-label="Flop">
+            {[0, 1, 2].map((i) => slot({ kind: 'board', slot: i }, `b-${i}`, 'board', board[i], `${STREETS[i]} card ${i + 1}`))}
+          </div>
+          <figcaption className="street-label">Flop</figcaption>
+        </figure>
+        <figure className="street-group">
+          <div className="street" role="group" aria-label="Turn">
+            {slot({ kind: 'board', slot: 3 }, 'b-3', 'board', board[3], 'Turn')}
+          </div>
+          <figcaption className="street-label">Turn</figcaption>
+        </figure>
+        <figure className="street-group">
+          <div className="street" role="group" aria-label="River">
+            {slot({ kind: 'board', slot: 4 }, 'b-4', 'board', board[4], 'River')}
+          </div>
+          <figcaption className="street-label">River</figcaption>
+        </figure>
       </div>
+      {filled === 0 && <p className="section-lede">Leave it empty for odds before the flop, or add the flop, turn and river as they come.</p>}
       {props.problem && <p className="inline-problem">{props.problem}</p>}
 
+      {!props.advanced && dead.length > 0 && <p className="section-foot">{dead.length} dead card{dead.length > 1 ? 's' : ''} removed from the deck (edit in advanced).</p>}
+      {props.advanced && (
       <div className="dead">
         <div className="section-head">
           <h3 className="label">Dead cards</h3>
@@ -87,7 +108,9 @@ export function BoardPanel(props: Props) {
         <div className="dead-slots" role="group" aria-label="Dead cards">
           {deadSlots.map((card, i) => slot({ kind: 'dead', slot: i }, `d-${i}`, 'dead', card, `Dead card ${i + 1}`, 'sm'))}
         </div>
+        <p className="section-foot">Cards you know are out of play, like a burned or folded card.</p>
       </div>
+      )}
     </section>
   )
 }

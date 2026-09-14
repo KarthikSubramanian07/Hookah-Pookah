@@ -75,6 +75,7 @@ describe('spot model', () => {
   })
   it('reports empty ranges, range issues and board gaps', () => {
     const spot = defaultSpot('holdem')
+    spot.players[1].mode = 'range'
     spot.players[1].range = ''
     expect(compileSpot(spot).problems[0].message).toBe('Range is empty')
     spot.players[1].range = 'QQ+, bogus'
@@ -92,7 +93,7 @@ describe('spot model', () => {
     spot.board[0] = parseCard('2c')
     spot.dead = [parseCard('3c')]
     const used = usedCards(spot)
-    expect(used.get(parseCard('Ah'))).toBe('P1')
+    expect(used.get(parseCard('Ah'))).toBe('You')
     expect(used.get(parseCard('2c'))).toBe('Board')
     expect(used.get(parseCard('3c'))).toBe('Dead')
     expect(describeCards([parseCard('Ah'), null])).toBe('Ah?')
@@ -107,7 +108,7 @@ describe('share URLs', () => {
   it('round trips a rich spot', () => {
     const spot = defaultSpot('holdem')
     spot.players[0].cards = [parseCard('Ah'), null]
-    spot.players[1].range = 'QQ+, AKs:0.5, [25]T9s[/25], 15%'
+    spot.players[1] = { ...spot.players[1], mode: 'range', cards: [null, null], range: 'QQ+, AKs:0.5, [25]T9s[/25], 15%' }
     spot.players.push({ id: 99, mode: 'cards', cards: [null, null], range: '' })
     spot.board = [...parseCards('Ks7h2d'), null, null]
     spot.dead = parseCards('2c')

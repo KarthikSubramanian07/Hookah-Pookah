@@ -5,7 +5,7 @@ import type { VariantId } from './engine/variants.ts'
 import { VARIANTS, VARIANT_IDS, deckFor } from './engine/variants.ts'
 import { parseQuickSpot } from './state/quickSpot.ts'
 import { VARIANT_TITLES } from './state/seo.ts'
-import { type Spot, compactBoard, playerLabel, usedCards } from './state/spot.ts'
+import { type Spot, compactBoard, needsAdvanced, playerLabel, usedCards } from './state/spot.ts'
 import { VARIANT_PATHS, spotFromUrl, spotToUrl } from './state/url.ts'
 import { About } from './ui/components/About.tsx'
 import { BoardPanel } from './ui/components/BoardPanel.tsx'
@@ -14,7 +14,8 @@ import { HandChances } from './ui/components/HandChances.tsx'
 import { NextCard } from './ui/components/NextCard.tsx'
 import { PlayerRow } from './ui/components/PlayerRow.tsx'
 import { PotOdds } from './ui/components/PotOdds.tsx'
-import { EquitySummary } from './ui/components/Readout.tsx'
+import { Answer } from './ui/components/Answer.tsx'
+import { AnswerDock } from './ui/components/AnswerDock.tsx'
 import { useEquity, type Precision } from './ui/useEquity.ts'
 import { type SlotRef, useSpot } from './ui/useSpot.ts'
 
@@ -57,6 +58,21 @@ export function App() {
   const [quick, setQuick] = useState('')
   const [quickError, setQuickError] = useState<string>()
   const [copied, setCopied] = useState(false)
+  const [advancedPref, setAdvancedPref] = useState(() => {
+    try {
+      return window.localStorage.getItem('hp-advanced') === '1'
+    } catch {
+      return false
+    }
+  })
+  const setAdvanced = (on: boolean) => {
+    setAdvancedPref(on)
+    try {
+      window.localStorage.setItem('hp-advanced', on ? '1' : '0')
+    } catch {
+      // Private browsing: the preference just lasts for this visit.
+    }
+  }
   const quickRef = useRef<HTMLInputElement>(null)
 
   const equity = useEquity(spot, precision)
@@ -101,7 +117,10 @@ export function App() {
         act({ type: e.shiftKey ? 'redo' : 'undo' })
       } else if (e.key === '/' && !typing && !target.closest('[data-slot], .picker')) {
         e.preventDefault()
-        quickRef.current?.focus()
+        if (!quickRef.current) {
+          setAdvancedPref(true)
+          requestAnimationFrame(() => quickRef.current?.focus())
+        } else quickRef.current.focus()
       }
     }
     window.addEventListener('keydown', onKey)
@@ -178,9 +197,48 @@ export function App() {
     act({ type: 'variant', variant })
   }
 
+  const advanced = advancedPref || needsAdvanced(spot)
   const stale = equity.status === 'running'
   const result = equity.result && equity.result.players.length === spot.players.length ? equity.result : undefined
   const playerProblem = (i: number) => equity.compiled.problems.find((p) => p.where === i)?.message
+  const blocker = equity.compiled.problems[0]
+    ? equity.compiled.problems[0].where === 'board'
+      ? 'Fill the board from left to right: flop first, then turn, then river.'
+      : `${typeof equity.compiled.problems[0].where === 'number' ? playerLabel(equity.compiled.problems[0].where) : 'This hand'}: ${equity.compiled.problems[0].message.toLowerCase()}.`
+    : undefined
+
+  const renderPlayer = (i: number) => {
+    const player = spot.players[i]
+    return (
+      <PlayerRow
+        key={player.id}
+        index={i}
+        count={spot.players.length}
+        player={player}
+        variant={spot.variant}
+        shortDeckRules={spot.shortDeckRules}
+        ranking={spot.ranking}
+        board={board}
+        blocked={blocked}
+        result={result}
+        stale={stale}
+        advanced={advanced}
+        problem={playerProblem(i)}
+        issues={equity.compiled.rangeIssues.get(i)}
+        activeSlot={open?.key}
+        flashSlot={flash}
+        onOpenSlot={onOpenSlot}
+        onCard={(ref, card) => setCard(ref, card, ref.kind === 'player' ? `p${player.id}-${ref.slot}` : undefined)}
+        onMode={(mode) => act({ type: 'mode', player: i, mode })}
+        onRange={(text, typing) => act({ type: 'range', player: i, text, typing })}
+        onRanking={(ranking) => act({ type: 'ranking', ranking })}
+        onRemove={() => act({ type: 'removePlayer', player: i })}
+        onMove={(delta) => act({ type: 'movePlayer', player: i, delta })}
+        onClear={() => act({ type: 'clearPlayer', player: i })}
+        onAdvanced={() => setAdvanced(true)}
+      />
+    )
+  }
   const boardProblem = equity.compiled.problems.find((p) => p.where === 'board')?.message
 
   return (
@@ -230,99 +288,108 @@ export function App() {
         </div>
       </header>
 
-      <main className="layout">
-        <div className="intro">
-          <h1 className="headline">
-            What are the chances? <span className="headline-sub">{info.name} odds, exact whenever the math allows.</span>
-          </h1>
-          <form className="quick" onSubmit={onQuick} role="search">
-            <label htmlFor="quick" className="visually-hidden">
-              Describe a spot
-            </label>
-            <input
-              id="quick"
-              ref={quickRef}
-              className="input mono quick-input"
-              placeholder={info.supportsRanges ? 'AhKh vs QQ+, AKs vs random on Ks7h2d' : `${spot.variant === 'omaha5' ? 'AsAhKsKhQd' : 'AsAhKsKh'} vs random on Kd7h6h`}
-              value={quick}
-              aria-invalid={quickError ? 'true' : undefined}
-              aria-describedby="quick-help"
-              onChange={(e) => {
-                setQuick(e.target.value)
-                setQuickError(undefined)
-              }}
-            />
-            <button type="submit" className="btn btn-primary">
-              Load spot
-            </button>
-            <p id="quick-help" className={`quick-help${quickError ? ' is-error' : ''}`}>
-              {quickError ?? (
-                <>
-                  Press <kbd>/</kbd> to type a whole spot. Players split by <span className="mono">vs</span>, board after <span className="mono">on</span>, dead cards after{' '}
-                  <span className="mono">dead</span>.
-                </>
-              )}
-            </p>
-          </form>
-        </div>
-
+      <main className={`layout${advanced ? ' is-advanced' : ' is-simple'}`}>
         <div className="table-col">
-          <section className="players" aria-labelledby="players-title">
+          <div className="intro">
+            <h1 className="headline">What are the chances?</h1>
+            <p className="headline-sub">Pick your cards, add opponents, and see your odds instantly.</p>
+            <div className="intro-controls">
+              <label className="switch">
+                <input
+                  type="checkbox"
+                  role="switch"
+                  checked={advanced}
+                  disabled={needsAdvanced(spot) && !advancedPref}
+                  onChange={(e) => setAdvanced(e.target.checked)}
+                />
+                <span className="switch-track" aria-hidden="true">
+                  <span className="switch-thumb" />
+                </span>
+                <span className="switch-label">
+                  Advanced
+                  <span className="switch-hint">{advanced ? 'ranges, dead cards, precision' : 'ranges, dead cards and more'}</span>
+                </span>
+              </label>
+              {spot.variant === 'shortdeck' && (
+                <div className="segmented" role="group" aria-label="Short deck rules">
+                  <button type="button" aria-pressed={spot.shortDeckRules === 'triton'} onClick={() => act({ type: 'rules', rules: 'triton' })} title="Three of a kind beats a straight">
+                    Triton rules
+                  </button>
+                  <button type="button" aria-pressed={spot.shortDeckRules === 'classic'} onClick={() => act({ type: 'rules', rules: 'classic' })} title="Straight beats three of a kind">
+                    Classic rules
+                  </button>
+                </div>
+              )}
+            </div>
+            {advanced && (
+              <form className="quick" onSubmit={onQuick} role="search">
+                <label htmlFor="quick" className="visually-hidden">
+                  Type a whole spot
+                </label>
+                <input
+                  id="quick"
+                  ref={quickRef}
+                  className="input mono quick-input"
+                  placeholder={info.supportsRanges ? 'AhKh vs QQ+, AKs vs random on Ks7h2d' : `${spot.variant === 'omaha5' ? 'AsAhKsKhQd' : 'AsAhKsKh'} vs random on Kd7h6h`}
+                  value={quick}
+                  aria-invalid={quickError ? 'true' : undefined}
+                  aria-describedby="quick-help"
+                  onChange={(e) => {
+                    setQuick(e.target.value)
+                    setQuickError(undefined)
+                  }}
+                />
+                <button type="submit" className="btn btn-primary">
+                  Load
+                </button>
+                <p id="quick-help" className={`quick-help${quickError ? ' is-error' : ''}`}>
+                  {quickError ?? (
+                    <>
+                      Type a whole spot: players split by <span className="mono">vs</span>, board after <span className="mono">on</span>, dead cards after <span className="mono">dead</span>. Press <kbd>/</kbd> to jump here.
+                    </>
+                  )}
+                </p>
+              </form>
+            )}
+          </div>
+
+          <section className="step" aria-labelledby="step-you">
             <div className="section-head">
-              <h2 id="players-title" className="section-title">
-                Players <span className="section-count mono">{spot.players.length}</span>
+              <h2 id="step-you" className="section-title step-title">
+                <span className="step-number mono" aria-hidden="true">
+                  1
+                </span>
+                Your hand
+              </h2>
+            </div>
+            <ol className="player-list">{renderPlayer(0)}</ol>
+          </section>
+
+          <section className="step" aria-labelledby="step-opponents">
+            <div className="section-head">
+              <h2 id="step-opponents" className="section-title step-title">
+                <span className="step-number mono" aria-hidden="true">
+                  2
+                </span>
+                Opponents <span className="section-count mono">{spot.players.length - 1}</span>
               </h2>
               <div className="section-actions">
-                {spot.variant === 'shortdeck' && (
-                  <div className="segmented" role="group" aria-label="Short deck rules">
-                    <button type="button" aria-pressed={spot.shortDeckRules === 'triton'} onClick={() => act({ type: 'rules', rules: 'triton' })} title="Three of a kind beats a straight">
-                      Triton
-                    </button>
-                    <button type="button" aria-pressed={spot.shortDeckRules === 'classic'} onClick={() => act({ type: 'rules', rules: 'classic' })} title="Straight beats three of a kind">
-                      Classic
-                    </button>
-                  </div>
-                )}
                 <button type="button" className="btn btn-sm" disabled={spot.players.length >= info.maxPlayers} onClick={() => act({ type: 'addPlayer' })}>
-                  Add player
-                </button>
-                <button type="button" className="btn btn-ghost btn-sm" onClick={() => act({ type: 'clearAll' })}>
-                  Reset
+                  Add opponent
                 </button>
               </div>
             </div>
-            <ol className="player-list">
-              {spot.players.map((player, i) => (
-                <PlayerRow
-                  key={player.id}
-                  index={i}
-                  count={spot.players.length}
-                  player={player}
-                  variant={spot.variant}
-                  shortDeckRules={spot.shortDeckRules}
-                  ranking={spot.ranking}
-                  board={board}
-                  blocked={blocked}
-                  result={result}
-                  stale={stale}
-                  problem={playerProblem(i)}
-                  issues={equity.compiled.rangeIssues.get(i)}
-                  activeSlot={open?.key}
-                  flashSlot={flash}
-                  onOpenSlot={onOpenSlot}
-                  onCard={(ref, card) => setCard(ref, card, ref.kind === 'player' ? `p${player.id}-${ref.slot}` : undefined)}
-                  onMode={(mode) => act({ type: 'mode', player: i, mode })}
-                  onRange={(text, typing) => act({ type: 'range', player: i, text, typing })}
-                  onRanking={(ranking) => act({ type: 'ranking', ranking })}
-                  onRemove={() => act({ type: 'removePlayer', player: i })}
-                  onMove={(delta) => act({ type: 'movePlayer', player: i, delta })}
-                  onClear={() => act({ type: 'clearPlayer', player: i })}
-                />
-              ))}
-            </ol>
+            {spot.players.length > 1 ? (
+              <ol className="player-list">{spot.players.slice(1).map((_, i) => renderPlayer(i + 1))}</ol>
+            ) : (
+              <p className="section-lede">No opponents yet. Add one to see who is ahead.</p>
+            )}
+            {spot.players.length > 1 && <p className="section-foot">Leave an opponent's cards empty if you don't know them. They are dealt at random.</p>}
           </section>
 
           <BoardPanel
+            step={3}
+            advanced={advanced}
             variant={spot.variant}
             board={spot.board}
             dead={spot.dead}
@@ -335,17 +402,24 @@ export function App() {
             onClearBoard={() => act({ type: 'clearBoard' })}
             onClearDead={() => act({ type: 'clearDead' })}
           />
+
+          <p className="reset-row">
+            <button type="button" className="btn btn-ghost btn-sm" onClick={() => act({ type: 'clearAll' })}>
+              Start over
+            </button>
+          </p>
         </div>
 
         <div className="readout-col">
-          <EquitySummary equity={equity} players={spot.players} precision={precision} onPrecision={setPrecision} />
-          <HandChances variant={spot.variant} shortDeckRules={spot.shortDeckRules} players={spot.players} result={result} focus={focusIndex} onFocus={setFocus} />
+          <Answer equity={equity} players={spot.players} advanced={advanced} precision={precision} onPrecision={setPrecision} blocker={blocker} />
+          <HandChances variant={spot.variant} shortDeckRules={spot.shortDeckRules} players={spot.players} result={result} advanced={advanced} focus={focusIndex} onFocus={setFocus} />
           <NextCard
             variant={spot.variant}
             boardLength={board.length}
             players={spot.players}
             equity={equity}
             used={used}
+            advanced={advanced}
             focus={focusIndex}
             onFocus={setFocus}
             onDeal={(card) => {
@@ -357,6 +431,7 @@ export function App() {
         </div>
       </main>
 
+      <AnswerDock result={result} players={spot.players.length} running={stale} />
       <About />
 
       {open && (

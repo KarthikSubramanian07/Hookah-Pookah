@@ -2,7 +2,10 @@ import { expect, test } from '@playwright/test'
 
 test('mobile layout fits the viewport and the picker becomes a bottom sheet', async ({ page }) => {
   await page.goto('/holdem?p=AhKh&p=QsQd&b=Jh7h2c')
-  await expect(page.locator('.method')).toHaveAttribute('data-state', 'done', { timeout: 45_000 })
+  await expect(page.locator('.answer')).toHaveAttribute('data-state', 'done', { timeout: 45_000 })
+  // The docked answer is on screen while the full panel is below the fold.
+  await expect(page.locator('.answer-dock')).toHaveAttribute('data-hidden', 'false')
+  await expect(page.locator('.answer-dock-value')).toHaveText(/%$/)
   const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth)
   expect(overflow).toBeLessThanOrEqual(0)
 

@@ -1,21 +1,40 @@
 import { AxeBuilder } from '@axe-core/playwright'
 import { type Page, expect, test } from '@playwright/test'
 
-const heroEquity = (page: Page) => page.getByRole('listitem').filter({ hasText: 'Hero' }).locator('.equity-bar-value')
-const summaryValue = (page: Page, name: string) => page.locator('.equity-bar').filter({ hasText: name }).locator('.equity-bar-value')
-const methodBadge = (page: Page) => page.locator('.method-badge')
+const summaryValue = (page: Page, name: string) => page.locator('.answer-bar').filter({ hasText: name }).locator('.answer-bar-value')
+const methodNote = (page: Page) => page.locator('.method-note')
+const openRangeEditor = (page: Page) => page.getByRole('button', { name: 'Edit range' }).click()
 
 async function waitDone(page: Page) {
-  await expect(page.locator('.method')).toHaveAttribute('data-state', 'done', { timeout: 45_000 })
+  await expect(page.locator('.answer')).toHaveAttribute('data-state', 'done', { timeout: 45_000 })
 }
 
 test.describe('calculator', () => {
-  test('default spot resolves exactly', async ({ page }) => {
+  test('default spot resolves exactly with a plain-language answer', async ({ page }) => {
     await page.goto('/holdem')
     await waitDone(page)
-    await expect(methodBadge(page)).toHaveText('Exact')
-    await expect(summaryValue(page, 'Hero')).toHaveText('41.90%')
-    await expect(summaryValue(page, 'Player 2')).toHaveText('58.10%')
+    await expect(methodNote(page)).toHaveText('Exact: every possible deal was checked')
+    await expect(page.locator('.answer-big')).toHaveText('46.2%')
+    await expect(page.locator('.answer .verdict')).toHaveText('Coin flip')
+    await expect(summaryValue(page, 'You')).toHaveText('46.21%')
+    await expect(summaryValue(page, 'Opponent 1')).toHaveText('53.79%')
+  })
+
+  test('simple mode hides advanced tools until switched on', async ({ page }) => {
+    await page.goto('/holdem')
+    await waitDone(page)
+    await expect(page.getByRole('button', { name: 'Range' })).toHaveCount(0)
+    await expect(page.locator('#quick')).toHaveCount(0)
+    await expect(page.getByRole('group', { name: 'Dead cards' })).toHaveCount(0)
+    await expect(page.locator('.chances-table')).toHaveCount(0)
+    await expect(page.locator('.chance-list')).toBeVisible()
+    await page.getByRole('switch', { name: /Advanced/ }).check()
+    await expect(page.getByRole('button', { name: 'Range' }).first()).toBeVisible()
+    await expect(page.locator('#quick')).toBeVisible()
+    await expect(page.getByRole('group', { name: 'Dead cards' })).toBeVisible()
+    await expect(page.locator('.chances-table')).toBeVisible()
+    await page.reload()
+    await expect(page.getByRole('switch', { name: /Advanced/ })).toBeChecked()
   })
 
   test('quick spot entry loads a matchup and updates the URL', async ({ page }) => {
@@ -24,7 +43,7 @@ test.describe('calculator', () => {
     await page.keyboard.type('AsAh vs KsKh')
     await page.keyboard.press('Enter')
     await waitDone(page)
-    await expect(summaryValue(page, 'Hero')).toHaveText('82.64%')
+    await expect(summaryValue(page, 'You')).toHaveText('82.64%')
     await expect(page).toHaveURL(/\/holdem\?p=AsAh&p=KsKh$/)
     await page.locator('#quick').fill('AhAh vs KK')
     await page.locator('#quick').press('Enter')
@@ -34,16 +53,18 @@ test.describe('calculator', () => {
   test('shared URLs restore the full spot', async ({ page }) => {
     await page.goto('/holdem?p=AhKh&p=r:QQ%2B,AKs&b=Qh7h2c&d=3s')
     await waitDone(page)
+    await expect(page.getByRole('switch', { name: /Advanced/ })).toBeChecked()
+    await openRangeEditor(page)
     await expect(page.locator('#range-1')).toHaveValue('QQ+,AKs')
     await expect(page.getByRole('button', { name: /Flop card 1: Queen of hearts/ })).toBeVisible()
     await expect(page.getByRole('button', { name: /Dead card 1: Three of spades/ })).toBeVisible()
-    await expect(methodBadge(page)).toHaveText('Exact')
+    await expect(methodNote(page)).toHaveText(/^Exact/)
   })
 
   test('cards can be typed straight into slots and moved between owners', async ({ page }) => {
     await page.goto('/holdem?p=AhKh&p=QsQd')
     await waitDone(page)
-    const slot = page.getByRole('button', { name: /^Hero card 1:/ })
+    const slot = page.getByRole('button', { name: /^You card 1:/ })
     await slot.focus()
     await page.keyboard.press('Backspace')
     await expect(slot).toHaveAccessibleName(/empty/)
@@ -56,34 +77,34 @@ test.describe('calculator', () => {
     await slot.click()
     const picker = page.getByRole('dialog', { name: /Pick a card/ })
     await expect(picker).toBeVisible()
-    await picker.getByRole('gridcell', { name: /Queen of spades, in use by P2/ }).click()
-    await expect(page.getByRole('button', { name: /^Player 2 card 1: empty/ })).toBeVisible()
+    await picker.getByRole('gridcell', { name: /Queen of spades, in use by Opp 1/ }).click()
+    await expect(page.getByRole('button', { name: /^Opponent 1 card 1: empty/ })).toBeVisible()
     await expect(page).toHaveURL(/p=QsKh&p=\?Qd/)
   })
 
   test('the picker supports keyboard selection and closes with Escape', async ({ page }) => {
     await page.goto('/holdem?p=??&p=QsQd')
-    await page.getByRole('button', { name: /^Hero card 1:/ }).click()
+    await page.getByRole('button', { name: /^You card 1:/ }).click()
     const picker = page.getByRole('dialog', { name: /Pick a card/ })
     await page.keyboard.type('ah')
-    await expect(page.getByRole('button', { name: /^Hero card 1: Ace of hearts/ })).toBeVisible()
+    await expect(page.getByRole('button', { name: /^You card 1: Ace of hearts/ })).toBeVisible()
     // Picker advanced to the second slot.
     await page.keyboard.type('kh')
-    await expect(page.getByRole('button', { name: /^Hero card 2: King of hearts/ })).toBeVisible()
+    await expect(page.getByRole('button', { name: /^You card 2: King of hearts/ })).toBeVisible()
     await expect(picker).toBeHidden()
     await waitDone(page)
-    await expect(summaryValue(page, 'Hero')).toHaveText('46.21%')
+    await expect(summaryValue(page, 'You')).toHaveText('46.21%')
   })
 
   test('Monte Carlo shows an interval and stops at the target', async ({ page }) => {
     await page.goto('/holdem?p=AhKh&p=??&p=??&p=??')
-    await expect(methodBadge(page)).toHaveText('Monte Carlo')
     await waitDone(page)
-    await expect(page.locator('.method-detail').first()).toHaveText(/±0\.\d+% at 95%/)
-    const value = Number((await summaryValue(page, 'Hero').textContent())!.replace('%', ''))
+    await expect(methodNote(page)).toHaveText(/^Estimate, accurate to ±0\.\d+%/)
+    const value = Number((await summaryValue(page, 'You').textContent())!.replace('%', ''))
     // AKs against three random hands: 41.43% (seeded 20M-trial reference in preflopRanking.ts).
     expect(Math.abs(value - 41.43)).toBeLessThan(0.3)
-    await expect(page.locator('.equity-bar-ci').first()).toBeVisible()
+    await page.getByRole('switch', { name: /Advanced/ }).check()
+    await expect(page.locator('.answer-bar-ci').first()).toBeVisible()
   })
 
   test('switching games keeps clean routes and history', async ({ page }) => {
@@ -92,27 +113,28 @@ test.describe('calculator', () => {
     await page.getByRole('link', { name: 'PLO4' }).click()
     await expect(page).toHaveURL(/\/plo\?/)
     await waitDone(page)
-    await expect(summaryValue(page, 'Hero')).toHaveText('61.48%')
+    await expect(summaryValue(page, 'You')).toHaveText('61.48%')
     await expect(page.getByRole('button', { name: 'Range' })).toHaveCount(0)
     await page.goBack()
     await expect(page).toHaveURL(/\/holdem/)
     await waitDone(page)
-    await expect(summaryValue(page, 'Hero')).toHaveText('41.90%')
+    await expect(summaryValue(page, 'You')).toHaveText('46.21%')
   })
 
   test('short deck rule sets change the result', async ({ page }) => {
     await page.goto('/short-deck?p=AsAh&p=KsKh')
     await waitDone(page)
-    await expect(summaryValue(page, 'Hero')).toHaveText('74.96%')
-    await page.getByRole('button', { name: 'Classic' }).click()
+    await expect(summaryValue(page, 'You')).toHaveText('74.96%')
+    await page.getByRole('button', { name: 'Classic rules' }).click()
     await waitDone(page)
-    await expect(summaryValue(page, 'Hero')).toHaveText('75.02%')
+    await expect(summaryValue(page, 'You')).toHaveText('75.02%')
     await expect(page).toHaveURL(/rules=classic/)
   })
 
   test('painting the range grid rewrites the range', async ({ page }) => {
     await page.goto('/holdem?p=AhKh&p=r:AA')
     await waitDone(page)
+    await openRangeEditor(page)
     const kk = page.locator('.range-cell', { hasText: /^KK$/ })
     const qq = page.locator('.range-cell', { hasText: /^QQ$/ })
     const a = await kk.boundingBox()
@@ -134,6 +156,7 @@ test.describe('calculator', () => {
 
   test('percent slider and presets build ranges', async ({ page }) => {
     await page.goto('/holdem?p=AhKh&p=r:AA')
+    await openRangeEditor(page)
     await page.getByRole('button', { name: 'Top 5%' }).click()
     await expect(page.locator('#range-1')).toHaveValue('5%')
     await expect(page.locator('.range-meta')).toContainText(/6[0-9] combos/)
@@ -146,30 +169,32 @@ test.describe('calculator', () => {
     await waitDone(page)
     const cells = page.locator('.nextcard-cell:not(.is-used)')
     await expect(cells).toHaveCount(45)
-    await expect(page.locator('.nextcard-stats')).toContainText('improve', { timeout: 30_000 })
+    await expect(page.locator('.nextcard-summary')).toContainText('improve your chances', { timeout: 30_000 })
     await expect(cells.filter({ hasText: /^\d+$/ })).toHaveCount(45, { timeout: 30_000 })
-    await page.getByRole('gridcell', { name: /^Ten of hearts: 100.0% equity/ }).click()
+    await page.getByRole('gridcell', { name: /^Ten of hearts: 100.0% to win/ }).click()
     await expect(page).toHaveURL(/b=Jh7h2cTh/)
     await waitDone(page)
-    await expect(page.getByRole('heading', { name: 'Every river card' })).toBeVisible()
+    await expect(page.getByRole('heading', { name: 'Which river cards help you?' })).toBeVisible()
   })
 
   test('pot odds gives a verdict', async ({ page }) => {
     await page.goto('/holdem?p=AsAh&p=KsKh')
     await waitDone(page)
-    await expect(page.locator('.potodds-verdict')).toHaveText('Profitable call')
+    await page.getByText('Should I call?').click()
+    await expect(page.locator('.potodds-verdict')).toHaveText('Calling makes money in the long run')
     await page.getByLabel('To call').fill('1000')
-    await expect(page.locator('.potodds-verdict')).toHaveText('Losing call')
+    await expect(page.locator('.potodds-verdict')).toHaveText('Calling loses money in the long run')
   })
 
   test('explains invalid spots without breaking', async ({ page }) => {
     await page.goto('/holdem?p=AhKh&p=r:AA')
+    await openRangeEditor(page)
     await page.locator('#range-1').fill('zzz')
     await expect(page.locator('.player-problem')).toHaveText('Range has no valid hands')
-    await expect(page.locator('.method-badge')).toHaveText('Waiting for a complete spot')
+    await expect(page.locator('.answer-blocker')).toHaveText('Opponent 1: range has no valid hands.')
     await page.locator('#range-1').fill('KK')
     await waitDone(page)
-    await expect(heroEquity(page)).toBeVisible()
+    await expect(page.locator('.answer-big')).toBeVisible()
   })
 
   test('has no detectable accessibility violations', async ({ page }) => {
