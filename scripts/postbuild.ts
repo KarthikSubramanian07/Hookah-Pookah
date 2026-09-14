@@ -1,12 +1,12 @@
 /**
  * Post-build SEO pass over dist/:
- *  - one prerendered HTML entry per game (/holdem, /short-deck, /plo, /plo5) with its own title,
+ *  - one HTML entry per game (/holdem, /short-deck, /plo, /plo5) with its own title,
  *    description, canonical URL and social tags, so each clean route is indexable on its own
  *  - sitemap.xml
  * The app itself hydrates the same bundle on every route.
  */
 
-import { mkdirSync, readFileSync, writeFileSync } from 'node:fs'
+import { readFileSync, writeFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import { VARIANT_TITLES } from '../src/state/seo.ts'
 
@@ -78,10 +78,9 @@ ${urls.map((u) => `  <url><loc>${SITE}${u}</loc><lastmod>${date}</lastmod><chang
 if (import.meta.url === `file://${process.argv[1]}`) {
   const dist = fileURLToPath(new URL('../dist/', import.meta.url))
   const template = readFileSync(`${dist}index.html`, 'utf8')
-  for (const page of PAGES) {
-    mkdirSync(`${dist}${page.path.slice(1)}`, { recursive: true })
-    writeFileSync(`${dist}${page.path.slice(1)}/index.html`, renderPage(template, page))
-  }
+  // /holdem.html is served at /holdem by Cloudflare Pages with no redirect; a holdem/index.html
+  // directory would instead 308 to /holdem/ and disagree with the canonical URL.
+  for (const page of PAGES) writeFileSync(`${dist}${page.path.slice(1)}.html`, renderPage(template, page))
   writeFileSync(`${dist}sitemap.xml`, renderSitemap(new Date().toISOString().slice(0, 10)))
   console.log(`postbuild: wrote ${PAGES.length} route pages and sitemap.xml`)
 }
