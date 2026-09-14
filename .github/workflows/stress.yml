@@ -1,0 +1,32 @@
+name: Stress
+
+on:
+  schedule:
+    - cron: '17 6 * * 1'
+  workflow_dispatch:
+    inputs:
+      fuzz:
+        description: Differential fuzz scenarios
+        default: '400'
+      calibration:
+        description: Monte Carlo calibration runs per case
+        default: '600'
+
+jobs:
+  stress:
+    name: Exhaustive counts, PHEvaluator corpus, fuzz, calibration
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - uses: actions/cache@v4
+        with:
+          path: .cache/phe
+          key: phe-corpus-v1
+      - run: node scripts/stress.ts --fuzz ${{ inputs.fuzz || '400' }} --calibration ${{ inputs.calibration || '600' }}

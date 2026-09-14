@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://hookah-pookah.pages.dev/sitemap.xml

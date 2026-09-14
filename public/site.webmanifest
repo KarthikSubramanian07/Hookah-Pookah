@@ -1,0 +1,14 @@
+{
+  "name": "Hookah Pookah poker odds calculator",
+  "short_name": "Hookah Pookah",
+  "description": "Exact poker equity for Hold'em, Short Deck and PLO.",
+  "start_url": "/holdem",
+  "display": "standalone",
+  "background_color": "#11151c",
+  "theme_color": "#11151c",
+  "icons": [
+    { "src": "/favicon.svg", "sizes": "any", "type": "image/svg+xml" },
+    { "src": "/icon-512.png", "sizes": "512x512", "type": "image/png" },
+    { "src": "/apple-touch-icon.png", "sizes": "180x180", "type": "image/png" }
+  ]
+}

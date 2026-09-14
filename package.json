@@ -1,0 +1,49 @@
+{
+  "name": "hookah-pookah",
+  "private": true,
+  "version": "1.0.0",
+  "description": "Exact-enumeration and Monte Carlo poker odds engine for Hold'em, Short Deck and PLO.",
+  "license": "MIT",
+  "author": "Karthik Subramanian <winnerkarthik07@gmail.com>",
+  "type": "module",
+  "engines": {
+    "node": ">=22.18"
+  },
+  "packageManager": "pnpm@9.15.9",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc -b && vite build && node scripts/postbuild.ts",
+    "preview": "vite preview --port 4173 --strictPort",
+    "typecheck": "tsc -b",
+    "lint": "oxlint --deny-warnings src tests scripts e2e",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage",
+    "test:stress": "node scripts/stress.ts",
+    "test:e2e": "playwright test",
+    "gen:ranking": "node scripts/gen-preflop-ranking.ts",
+    "gen:og": "node scripts/gen-og.ts",
+    "deploy": "pnpm build && wrangler pages deploy dist --project-name hookah-pookah --branch main"
+  },
+  "dependencies": {
+    "react": "^19.3.0",
+    "react-dom": "^19.3.0"
+  },
+  "devDependencies": {
+    "@axe-core/playwright": "^4.13.0",
+    "@fontsource-variable/fraunces": "^5.3.0",
+    "@fontsource-variable/inter-tight": "^5.3.0",
+    "@fontsource-variable/jetbrains-mono": "^5.3.0",
+    "@playwright/test": "^1.63.0",
+    "@types/node": "^24.13.3",
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.2.7",
+    "@vitejs/plugin-react": "^6.1.1",
+    "@vitest/coverage-v8": "^5.0.0",
+    "oxlint": "^1.81.0",
+    "typescript": "~6.0.2",
+    "vite": "^8.3.0",
+    "vitest": "^5.0.0",
+    "wrangler": "^4.131.1"
+  }
+}
