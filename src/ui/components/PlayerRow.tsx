@@ -33,7 +33,7 @@ interface Props {
   onOpenSlot: (ref: SlotRef, key: string, el: HTMLElement, label: string) => void
   onCard: (ref: SlotRef, card: Card | null) => void
   onMode: (mode: 'cards' | 'range') => void
-  onRange: (text: string) => void
+  onRange: (text: string, typing?: boolean) => void
   onRanking: (ranking: RankingId) => void
   onRemove: () => void
   onMove: (delta: -1 | 1) => void

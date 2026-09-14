@@ -30,7 +30,7 @@ interface Props {
   /** Per combo breakdown for this player from the latest result, if any. */
   breakdown: ComboBreakdown[] | undefined
   playerIndex: number
-  onText: (text: string) => void
+  onText: (text: string, typing?: boolean) => void
   onRanking: (ranking: RankingId) => void
 }
 
@@ -190,7 +190,7 @@ export function RangeEditor({ variant, text, ranking, issues, blocked, breakdown
           value={text}
           aria-invalid={issues && issues.length > 0 ? 'true' : undefined}
           aria-describedby={`range-help-${playerIndex}`}
-          onChange={(e) => onText(e.target.value)}
+          onChange={(e) => onText(e.target.value, true)}
         />
         <div id={`range-help-${playerIndex}`} className="range-meta">
           <span className="mono">

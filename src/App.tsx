@@ -312,7 +312,7 @@ export function App() {
                   onOpenSlot={onOpenSlot}
                   onCard={(ref, card) => setCard(ref, card, ref.kind === 'player' ? `p${player.id}-${ref.slot}` : undefined)}
                   onMode={(mode) => act({ type: 'mode', player: i, mode })}
-                  onRange={(text) => act({ type: 'range', player: i, text })}
+                  onRange={(text, typing) => act({ type: 'range', player: i, text, typing })}
                   onRanking={(ranking) => act({ type: 'ranking', ranking })}
                   onRemove={() => act({ type: 'removePlayer', player: i })}
                   onMove={(delta) => act({ type: 'movePlayer', player: i, delta })}

@@ -79,10 +79,13 @@ describe('spot reducer', () => {
 
   it('tracks undo and redo, merging bursts of range typing', () => {
     let s = initial()
-    s = spotReducer(s, { type: 'range', player: 1, text: 'Q' })
-    s = spotReducer(s, { type: 'range', player: 1, text: 'QQ' })
-    s = spotReducer(s, { type: 'range', player: 1, text: 'QQ+' })
+    s = spotReducer(s, { type: 'range', player: 1, text: 'Q', typing: true })
+    s = spotReducer(s, { type: 'range', player: 1, text: 'QQ', typing: true })
+    s = spotReducer(s, { type: 'range', player: 1, text: 'QQ+', typing: true })
     expect(s.past).toHaveLength(1)
+    // Grid edits never merge, even in quick succession.
+    const grid = spotReducer(spotReducer(s, { type: 'range', player: 1, text: 'QQ+, AKs' }), { type: 'range', player: 1, text: 'QQ+, AKs, AQs' })
+    expect(grid.past).toHaveLength(3)
     s = spotReducer(s, { type: 'clearBoard' }) // no-op: board already empty
     expect(s.past).toHaveLength(1)
     s = spotReducer(s, { type: 'card', ref: { kind: 'board', slot: 0 }, card: parseCard('2c') })

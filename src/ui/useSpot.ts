@@ -12,7 +12,8 @@ export type SpotAction =
   | { type: 'variant'; variant: VariantId }
   | { type: 'card'; ref: SlotRef; card: Card | null }
   | { type: 'mode'; player: number; mode: PlayerMode }
-  | { type: 'range'; player: number; text: string }
+  /** `typing` edits merge into one undo step; grid and preset edits are each their own step. */
+  | { type: 'range'; player: number; text: string; typing?: boolean }
   | { type: 'addPlayer'; mode?: PlayerMode; range?: string }
   | { type: 'removePlayer'; player: number }
   | { type: 'movePlayer'; player: number; delta: -1 | 1 }
@@ -159,7 +160,7 @@ export function spotReducer(state: SpotState, action: SpotAction): SpotState {
   const next = applyAction(state.spot, action)
   // Actions that change nothing (clearing an empty board) must not create undo steps.
   if (next === state.spot || JSON.stringify(next) === JSON.stringify(state.spot)) return state
-  const coalesce = action.type === 'range' ? `range:${action.player}` : undefined
+  const coalesce = action.type === 'range' && action.typing ? `range:${action.player}` : undefined
   const now = Date.now()
   const merge = coalesce !== undefined && coalesce === state.lastCoalesce && now - state.lastAt < COALESCE_MS
   return {
