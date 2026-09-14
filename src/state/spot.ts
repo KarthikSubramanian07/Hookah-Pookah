@@ -51,8 +51,7 @@ export function defaultSpot(variant: VariantId = 'holdem'): Spot {
   const villain = emptyPlayer(variant)
   if (variant === 'holdem') {
     hero.cards = parseCards('AhKh')
-    villain.mode = 'range'
-    villain.range = 'QQ+, AKs, AKo'
+    villain.cards = parseCards('QsQd')
   } else if (variant === 'shortdeck') {
     hero.cards = parseCards('AsKs')
     villain.cards = parseCards('QhQd')
@@ -79,7 +78,7 @@ export function defaultSpot(variant: VariantId = 'holdem'): Spot {
 export function usedCards(spot: Spot): Map<Card, string> {
   const used = new Map<Card, string>()
   spot.players.forEach((p, i) => {
-    if (p.mode === 'cards') p.cards.forEach((c) => c !== null && used.set(c, `P${i + 1}`))
+    if (p.mode === 'cards') p.cards.forEach((c) => c !== null && used.set(c, i === 0 ? 'You' : `Opp ${i}`))
   })
   spot.board.forEach((c) => c !== null && used.set(c, 'Board'))
   spot.dead.forEach((c) => used.set(c, 'Dead'))
@@ -139,6 +138,11 @@ export function compileSpot(spot: Spot): CompiledSpot {
   return { request, problems, rangeIssues, rangeSizes }
 }
 
-export const playerLabel = (i: number): string => (i === 0 ? 'Hero' : `Player ${i + 1}`)
+export const playerLabel = (i: number): string => (i === 0 ? 'You' : `Opponent ${i}`)
+
+export const playerShortLabel = (i: number): string => (i === 0 ? 'You' : `Opp ${i}`)
+
+/** Spots that use features only shown in advanced mode. */
+export const needsAdvanced = (spot: Spot): boolean => spot.players.some((p) => p.mode === 'range') || spot.dead.length > 0
 
 export const describeCards = (cards: (Card | null)[]): string => cards.map((c) => (c === null ? '?' : formatCard(c))).join('')

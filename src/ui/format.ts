@@ -36,3 +36,14 @@ export function duration(ms: number): string {
   if (ms < 1000) return `${Math.max(1, Math.round(ms))} ms`
   return `${(ms / 1000).toFixed(ms < 10_000 ? 1 : 0)} s`
 }
+
+/** Plain-language read of the hero's equity against a fair share of the pot. */
+export function verdict(equity: number, players: number): { label: string; tone: 'better' | 'even' | 'worse' } {
+  if (players <= 1) return { label: 'No opponents yet', tone: 'even' }
+  const share = equity * players
+  if (share >= 1.6) return { label: 'Strong favourite', tone: 'better' }
+  if (share >= 1.15) return { label: 'Favourite', tone: 'better' }
+  if (share > 0.87) return { label: players === 2 ? 'Coin flip' : 'About even', tone: 'even' }
+  if (share > 0.5) return { label: 'Underdog', tone: 'worse' }
+  return { label: 'Long shot', tone: 'worse' }
+}
