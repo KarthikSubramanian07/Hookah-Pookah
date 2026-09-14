@@ -46,7 +46,17 @@ Everything runs in your browser. No server, no account, no ads.
 Spots live in the URL, so every calculation is shareable:
 [`/holdem?p=AhKh&p=r:QQ+,AKs&b=Qh7h2c`](https://hookah-pookah.pages.dev/holdem?p=AhKh&p=r:QQ%2B,AKs&b=Qh7h2c)
 
-### Fast input
+### How to use it
+
+1. **Your hand**: tap the two card slots and pick your cards.
+2. **Opponents**: add as many as are in the hand. Pick their cards if you know them; leave them empty and they are dealt at random.
+3. **Board** (optional): add the flop, turn and river as they come.
+
+The answer updates as you go: your chance to win, whether you are a favourite or an underdog, what hand you are likely to finish with, and (once there is a flop) which next cards help you. Open **Should I call?** to compare the price of a call with your chances.
+
+Switch on **Advanced** for opponent ranges, the 13x13 range grid, dead cards, precision settings and the full hand table. Shared links that use those features open in Advanced automatically.
+
+### Fast input (Advanced)
 
 - Press <kbd>/</kbd> and type a whole spot: `AhKh vs QQ+, AKs vs random on Ks7h2d dead 2c`
 - Focus any card slot and type `a` `h`. <kbd>Backspace</kbd> clears it.
