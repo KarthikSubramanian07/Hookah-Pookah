@@ -22,3 +22,10 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Tooling output
+.wrangler
+test-results
+playwright-report
+coverage
+.cache
