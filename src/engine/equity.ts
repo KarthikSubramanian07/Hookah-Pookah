@@ -20,7 +20,9 @@
 import type { Card } from './cards.ts'
 import { formatCard, rankOf, suitOf } from './cards.ts'
 import { CATEGORY_COUNT, type Rules, categoryOf, rulesFor } from './evaluator.ts'
+import { isoEnumerate } from './boardIso.ts'
 import { Rng } from './rng.ts'
+import { FastScorer } from './scorer.ts'
 import type { ShortDeckRules, VariantId } from './variants.ts'
 import { BOARD_SIZE, VARIANTS, deckFor } from './variants.ts'
 
@@ -45,7 +47,10 @@ export interface EquityRequest {
   board?: readonly Card[]
   dead?: readonly Card[]
   method?: Method
-  /** Largest number of hand evaluations exact mode may spend before auto falls back to Monte Carlo. */
+  /**
+   * Budget for exact mode in player evaluations (before suit merging and caching, which usually cut
+   * the real work several times). Auto falls back to Monte Carlo above it.
+   */
   exactEvalLimit?: number
   /** Monte Carlo stops once every player's equity standard error is at or below this. */
   targetStdErr?: number
@@ -121,7 +126,7 @@ export class EquityInputError extends Error {
   }
 }
 
-export const DEFAULT_EXACT_EVAL_LIMIT = 40_000_000
+export const DEFAULT_EXACT_EVAL_LIMIT = 150_000_000
 export const DEFAULT_TARGET_STDERR = 0.0002
 export const DEFAULT_MAX_TRIALS = 200_000_000
 export const DEFAULT_TIME_LIMIT_MS = 12_000
@@ -219,7 +224,8 @@ export function prepare(req: EquityRequest): Prepared {
     throw new EquityInputError(`Not enough cards: this deal needs ${needed} more but only ${deck.length} remain`)
   }
 
-  const evalsPerPlayer = info.mustUseTwo ? choose(info.holeCount, 2) * choose(BOARD_SIZE, 3) : 1
+  // Relative cost of scoring one player: the direct Omaha evaluator costs roughly twice a Hold'em lookup.
+  const evalsPerPlayer = info.mustUseTwo ? 2 : 1
   return {
     variant: req.variant,
     rules,
@@ -248,27 +254,34 @@ interface JointList {
   totalWeight: number
 }
 
+/** Depth-first search nodes allowed when listing joint assignments before giving up. */
+export const JOINT_NODE_BUDGET = 8_000_000
+
 /**
- * Enumerates conflict-free joint range assignments, or returns undefined if there would be more than
- * `cap` of them (checked against the raw product first so huge ranges bail out immediately).
+ * Enumerates conflict-free joint range assignments with a pruned depth-first search, or returns
+ * undefined when there are more than `cap` of them or the search exceeds `nodeBudget` nodes.
+ * There is no raw-product bailout: heavily overlapping ranges (six players on QQ+,AK has a raw product
+ * of 1.5e9 but only 226,800 valid deals) still get an exact list, which keeps Monte Carlo sampling
+ * O(log n) instead of falling back to rejection with a 1.5e-4 acceptance rate.
  */
-function enumerateJoint(prep: Prepared, rangePlayers: number[], cap: number): JointList | undefined {
+function enumerateJoint(prep: Prepared, rangePlayers: number[], cap: number, nodeBudget = JOINT_NODE_BUDGET): JointList | undefined {
   const k = rangePlayers.length
   if (k === 0) return { combos: new Int32Array(0), weights: Float64Array.of(1), count: 1, totalWeight: 1 }
-  let product = 1
-  for (const p of rangePlayers) product *= prep.ranges[p]!.length
-  if (product > cap * 8) return undefined
-
   const used = new Uint8Array(52)
   const choice = new Int32Array(k)
-  let combos = new Int32Array(Math.min(product, cap) * k)
+  let combos = new Int32Array(Math.min(cap, 1024) * k)
   const weights: number[] = []
   let count = 0
   let totalWeight = 0
+  let nodes = 0
   let overflow = false
 
   const rec = (depth: number, weight: number) => {
     if (overflow) return
+    if (++nodes > nodeBudget) {
+      overflow = true
+      return
+    }
     if (depth === k) {
       if (count >= cap) {
         overflow = true
@@ -299,7 +312,7 @@ function enumerateJoint(prep: Prepared, rangePlayers: number[], cap: number): Jo
   }
   rec(0, 1)
   if (overflow) return undefined
-  return { combos, weights: Float64Array.from(weights), count, totalWeight }
+  return { combos: combos.slice(0, count * k), weights: Float64Array.from(weights), count, totalWeight }
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -315,15 +328,14 @@ function pairIndices(n: number): [number, number][] {
   }
   return PAIRS_OF[n]
 }
-const BOARD_TRIPLES: [number, number, number][] = []
-for (let x = 0; x < 5; x++) for (let y = x + 1; y < 5; y++) for (let z = y + 1; z < 5; z++) BOARD_TRIPLES.push([x, y, z])
+
+const NO_PLAYERS: number[] = []
 
 /** Mutable deal state plus accumulators shared by exact and Monte Carlo drivers. */
 class Table {
   readonly n: number
   readonly hole: Int32Array
-  /** Hold'em: per player suit masks [c, d, h, s]. Omaha: per player, per hole pair, suit masks. */
-  readonly holeMasks: Int32Array
+  readonly scorer: FastScorer
   readonly boardCards = new Int32Array(5)
   readonly values: Int32Array
   readonly win: Float64Array
@@ -338,9 +350,8 @@ class Table {
   readonly rangePlayers: number[]
   readonly comboWeight: Float64Array[]
   readonly comboEquity: Float64Array[]
-
-  private readonly pairs: [number, number][]
-  private readonly tripleMasks = new Int32Array(40)
+  /** When false, per-combo accumulators are filled by addDeal instead of every showdown. */
+  trackCombos = true
 
   readonly prep: Prepared
   readonly trackSquares: boolean
@@ -350,8 +361,7 @@ class Table {
     this.trackSquares = trackSquares
     this.n = prep.playerCount
     this.hole = new Int32Array(this.n * prep.holeCount)
-    this.pairs = pairIndices(prep.holeCount)
-    this.holeMasks = new Int32Array(this.n * (prep.mustUseTwo ? this.pairs.length * 4 : 4))
+    this.scorer = new FastScorer(prep.rules, this.n, prep.holeCount, prep.mustUseTwo)
     this.values = new Int32Array(this.n)
     this.win = new Float64Array(this.n)
     this.tie = new Float64Array(this.n)
@@ -364,99 +374,19 @@ class Table {
     this.comboEquity = this.rangePlayers.map((p) => new Float64Array(prep.ranges[p]!.length * this.n))
   }
 
-  /** Recomputes cached masks for player p after its hole cards change. */
+  /** Recomputes cached hand state for player p after its hole cards change. */
   refreshPlayer(p: number): void {
-    const hc = this.prep.holeCount
-    const base = p * hc
-    if (!this.prep.mustUseTwo) {
-      let c = 0
-      let d = 0
-      let h = 0
-      let s = 0
-      for (let i = 0; i < hc; i++) {
-        const card = this.hole[base + i]
-        const bit = 1 << (card >> 2)
-        switch (card & 3) {
-          case 0: c |= bit; break
-          case 1: d |= bit; break
-          case 2: h |= bit; break
-          default: s |= bit
-        }
-      }
-      const o = p * 4
-      this.holeMasks[o] = c
-      this.holeMasks[o + 1] = d
-      this.holeMasks[o + 2] = h
-      this.holeMasks[o + 3] = s
-      return
-    }
-    const pairs = this.pairs
-    const o = p * pairs.length * 4
-    for (let i = 0; i < pairs.length; i++) {
-      const j = o + i * 4
-      this.holeMasks[j] = this.holeMasks[j + 1] = this.holeMasks[j + 2] = this.holeMasks[j + 3] = 0
-      for (const idx of pairs[i]) {
-        const card = this.hole[base + idx]
-        this.holeMasks[j + (card & 3)] |= 1 << (card >> 2)
-      }
-    }
+    this.scorer.setPlayer(p, this.hole)
   }
 
-  /** Scores the deal currently in `hole` and `boardCards` and accumulates it with `weight`. */
-  showdown(weight: number): void {
+  /**
+   * Scores the deal currently in `hole` and `boardCards` and accumulates it with `weight`.
+   * `multiplicity` is how many distinct deals this one stands for (suit-merged enumeration).
+   */
+  showdown(weight: number, multiplicity = 1): void {
     const n = this.n
     const values = this.values
-    const hm = this.holeMasks
-    const evalMasks = this.prep.rules.evalMasks
-    const bc = this.boardCards
-
-    if (!this.prep.mustUseTwo) {
-      let c = 0
-      let d = 0
-      let h = 0
-      let s = 0
-      for (let i = 0; i < 5; i++) {
-        const card = bc[i]
-        const bit = 1 << (card >> 2)
-        switch (card & 3) {
-          case 0: c |= bit; break
-          case 1: d |= bit; break
-          case 2: h |= bit; break
-          default: s |= bit
-        }
-      }
-      for (let p = 0, o = 0; p < n; p++, o += 4) {
-        values[p] = evalMasks(c | hm[o], d | hm[o + 1], h | hm[o + 2], s | hm[o + 3], 7)
-      }
-    } else {
-      const tm = this.tripleMasks
-      for (let t = 0; t < 10; t++) {
-        const tri = BOARD_TRIPLES[t]
-        const j = t * 4
-        tm[j] = tm[j + 1] = tm[j + 2] = tm[j + 3] = 0
-        for (let q = 0; q < 3; q++) {
-          const card = bc[tri[q]]
-          tm[j + (card & 3)] |= 1 << (card >> 2)
-        }
-      }
-      const pairCount = this.pairs.length
-      for (let p = 0; p < n; p++) {
-        let best = 0
-        const po = p * pairCount * 4
-        for (let i = 0; i < pairCount; i++) {
-          const j = po + i * 4
-          const c = hm[j]
-          const d = hm[j + 1]
-          const h = hm[j + 2]
-          const s = hm[j + 3]
-          for (let t = 0; t < 40; t += 4) {
-            const v = evalMasks(c | tm[t], d | tm[t + 1], h | tm[t + 2], s | tm[t + 3], 5)
-            if (v > best) best = v
-          }
-        }
-        values[p] = best
-      }
-    }
+    this.scorer.score(this.boardCards, values)
 
     let best = 0
     let winners = 0
@@ -490,7 +420,7 @@ class Table {
         }
       }
     }
-    const rp = this.rangePlayers
+    const rp = this.trackCombos ? this.rangePlayers : NO_PLAYERS
     for (let r = 0; r < rp.length; r++) {
       const idx = this.comboIndex[rp[r]]
       this.comboWeight[r][idx] += weight
@@ -504,7 +434,45 @@ class Table {
       }
     }
     this.totalWeight += weight
-    this.samples++
+    this.samples += multiplicity
+  }
+
+  snapshotCore(): CachedDeal {
+    return {
+      win: this.win.slice(),
+      tie: this.tie.slice(),
+      equity: this.equity.slice(),
+      categories: this.categories.slice(),
+      totalWeight: this.totalWeight,
+      samples: this.samples,
+    }
+  }
+
+  restoreCore(core: CachedDeal): void {
+    this.win.set(core.win)
+    this.tie.set(core.tie)
+    this.equity.set(core.equity)
+    this.categories.set(core.categories)
+    this.totalWeight = core.totalWeight
+    this.samples = core.samples
+  }
+
+  /** Adds a cached unit-weight deal (all boards for one set of hole cards) with weight `w`. */
+  addDeal(deal: CachedDeal, w: number): void {
+    const n = this.n
+    for (let p = 0; p < n; p++) {
+      this.win[p] += deal.win[p] * w
+      this.tie[p] += deal.tie[p] * w
+      this.equity[p] += deal.equity[p] * w
+    }
+    for (let i = 0; i < deal.categories.length; i++) this.categories[i] += deal.categories[i] * w
+    this.totalWeight += deal.totalWeight * w
+    this.samples += deal.samples
+    for (let r = 0; r < this.rangePlayers.length; r++) {
+      const idx = this.comboIndex[this.rangePlayers[r]]
+      this.comboWeight[r][idx] += deal.totalWeight * w
+      for (let p = 0; p < n; p++) this.comboEquity[r][idx * n + p] += deal.equity[p] * w
+    }
   }
 
   raw(): RawTotals {
@@ -626,6 +594,31 @@ export interface Plan {
 
 const JOINT_ENUM_CAP = 400_000
 
+/**
+ * How many joint deals exact mode will really enumerate: suit-relabelled duplicates are served from the
+ * cache when no player has random hole cards. Counted exactly for moderate lists, bounded otherwise.
+ */
+function estimateUniqueDeals(prep: Prepared, rangePlayers: number[], joint: JointList): number {
+  const hasRandom = prep.randomNeed.some((x) => x > 0)
+  const perms = boardPreservingPerms(prep)
+  if (hasRandom || joint.count <= 1 || perms.length <= 1) return joint.count
+  if (joint.count > 60_000) return Math.ceil(joint.count / perms.length)
+  const n = prep.playerCount
+  const hc = prep.holeCount
+  const hole = new Int32Array(n * hc)
+  for (let p = 0; p < n; p++) prep.known[p].forEach((c, i) => (hole[p * hc + i] = c))
+  const scratch = new Array<number>(n * hc)
+  const keys = new Set<string>()
+  for (let j = 0; j < joint.count; j++) {
+    for (let r = 0; r < rangePlayers.length; r++) {
+      const cards = prep.ranges[rangePlayers[r]]![joint.combos[j * rangePlayers.length + r]].cards
+      for (let i = 0; i < hc; i++) hole[rangePlayers[r] * hc + i] = cards[i]
+    }
+    keys.add(canonicalDealKey(hole, n, hc, perms, scratch))
+  }
+  return keys.size
+}
+
 export interface PlanOptions extends Pick<EquityRequest, 'method' | 'exactEvalLimit'> {
   /** Most joint range assignments to materialise (Monte Carlo above this uses rejection sampling). */
   jointCap?: number
@@ -643,7 +636,7 @@ export function plan(prep: Prepared, req: PlanOptions = {}): Plan {
     left -= need
   }
   completions *= choose(left, prep.boardNeed)
-  const exactEvals = joint ? joint.count * completions * prep.playerCount * prep.evalsPerPlayer : Infinity
+  const exactEvals = joint ? estimateUniqueDeals(prep, rangePlayers, joint) * completions * prep.playerCount * prep.evalsPerPlayer : Infinity
 
   const limit = req.exactEvalLimit ?? DEFAULT_EXACT_EVAL_LIMIT
   let method: 'exact' | 'montecarlo'
@@ -674,6 +667,70 @@ function loadKnownAndRanges(table: Table, prep: Prepared, rangePlayers: number[]
     }
     table.refreshPlayer(p)
   }
+}
+
+/** The 24 permutations of the four suits. */
+const SUIT_PERMS: number[][] = []
+{
+  const perm = (a: number[], k: number) => {
+    if (k === 4) {
+      SUIT_PERMS.push([...a])
+      return
+    }
+    for (let i = k; i < 4; i++) {
+      ;[a[k], a[i]] = [a[i], a[k]]
+      perm(a, k + 1)
+      ;[a[k], a[i]] = [a[i], a[k]]
+    }
+  }
+  perm([0, 1, 2, 3], 0)
+}
+
+const relabel = (card: Card, perm: number[]): Card => (card & ~3) | perm[card & 3]
+
+/**
+ * Suit relabelings that leave the board and dead cards unchanged as a set. Two deals related by such a
+ * relabeling have identical outcomes for every player, so exact enumeration can reuse results.
+ */
+function boardPreservingPerms(prep: Prepared): number[][] {
+  const known = new Set(prep.known.flat())
+  const live = new Set(prep.deck)
+  const fixed = deckFor(prep.variant).filter((c) => !live.has(c) && !known.has(c))
+  const fixedSet = new Set(fixed)
+  return SUIT_PERMS.filter((perm) => fixed.every((c) => fixedSet.has(relabel(c, perm))))
+}
+
+/** Canonical key of the hole cards under the given relabelings (player order is preserved). */
+function canonicalDealKey(hole: Int32Array, n: number, hc: number, perms: number[][], scratch: number[]): string {
+  let best = ''
+  for (const perm of perms) {
+    for (let p = 0; p < n; p++) {
+      const o = p * hc
+      for (let i = 0; i < hc; i++) scratch[o + i] = relabel(hole[o + i], perm)
+      // Holdings are unordered: sort each player's cards so AhKd and KdAh share a key.
+      for (let i = 1; i < hc; i++) {
+        const v = scratch[o + i]
+        let j = i - 1
+        while (j >= 0 && scratch[o + j] < v) {
+          scratch[o + j + 1] = scratch[o + j]
+          j--
+        }
+        scratch[o + j + 1] = v
+      }
+    }
+    const key = String.fromCharCode(...scratch.slice(0, n * hc))
+    if (best === '' || key < best) best = key
+  }
+  return best
+}
+
+interface CachedDeal {
+  win: Float64Array
+  tie: Float64Array
+  equity: Float64Array
+  categories: Float64Array
+  totalWeight: number
+  samples: number
 }
 
 export function runExact(prep: Prepared, planned: Plan, onProgress?: ProgressFn, progressEveryMs = 120): EquityResult {
@@ -710,29 +767,20 @@ export function runExact(prep: Prepared, planned: Plan, onProgress?: ProgressFn,
   }
 
   let weight = 1
-  const dealBoard = (from: number, depth: number) => {
-    if (depth === boardNeed) {
-      table.showdown(weight)
-      if (++checkCounter === 16384) {
-        checkCounter = 0
-        report(false)
-      }
-      return
-    }
-    for (let i = from; i <= deck.length - (boardNeed - depth); i++) {
-      const card = deck[i]
-      if (used[card]) continue
-      used[card] = 1
-      table.boardCards[boardStart + depth] = card
-      dealBoard(i + 1, depth + 1)
-      used[card] = 0
+  const visitBoard = (multiplicity: number) => {
+    table.showdown(weight * multiplicity, multiplicity)
+    if (++checkCounter === 16384) {
+      checkCounter = 0
+      report(false)
     }
   }
+  const dealBoards = () =>
+    isoEnumerate(deck, used, table.hole, n, hc, prep.mustUseTwo, table.boardCards, boardStart, boardNeed, visitBoard)
 
   // Players' random cards: combinations within a player (increasing deck index), free across players.
   const dealSlots = (s: number, from: number) => {
     if (s === slots.length) {
-      dealBoard(0, 0)
+      dealBoards()
       return
     }
     const [p, i] = slots[s]
@@ -751,10 +799,41 @@ export function runExact(prep: Prepared, planned: Plan, onProgress?: ProgressFn,
 
   for (let p = 0; p < n; p++) if (!prep.ranges[p] && prep.known[p].length === hc) table.refreshPlayer(p)
 
+  // With several range assignments and no random hole cards, deals that are suit relabelings of each
+  // other are enumerated once and replayed with their own weights.
+  const perms = boardPreservingPerms(prep)
+  const useCache = slots.length === 0 && joint.count > 1 && perms.length > 1
+  const cache = new Map<string, CachedDeal>()
+  const scratch = new Array<number>(n * hc)
+  table.trackCombos = !useCache
+
   for (let j = 0; j < joint.count; j++) {
     loadKnownAndRanges(table, prep, rangePlayers, joint, j, used)
-    weight = joint.weights[j]
-    dealSlots(0, 0)
+    const w = joint.weights[j]
+    if (!useCache) {
+      weight = w
+      dealSlots(0, 0)
+    } else {
+      const key = canonicalDealKey(table.hole, n, hc, perms, scratch)
+      let deal = cache.get(key)
+      if (!deal) {
+        const before = table.snapshotCore()
+        weight = 1
+        dealSlots(0, 0)
+        const after = table.snapshotCore()
+        deal = {
+          win: after.win.map((x, i) => x - before.win[i]),
+          tie: after.tie.map((x, i) => x - before.tie[i]),
+          equity: after.equity.map((x, i) => x - before.equity[i]),
+          categories: after.categories.map((x, i) => x - before.categories[i]),
+          totalWeight: after.totalWeight - before.totalWeight,
+          samples: after.samples - before.samples,
+        }
+        table.restoreCore(before)
+        cache.set(key, deal)
+      }
+      table.addDeal(deal, w)
+    }
     for (const p of rangePlayers) for (let i = 0; i < hc; i++) used[table.hole[p * hc + i]] = 0
     unitsDone = j + 1
     report(false)
@@ -777,17 +856,25 @@ export interface MonteCarloOptions {
 
 class WeightedSampler {
   private readonly cumulative: Float64Array
+  private readonly uniform: boolean
   constructor(weights: ArrayLike<number>) {
     this.cumulative = new Float64Array(weights.length)
     let sum = 0
+    let uniform = true
     for (let i = 0; i < weights.length; i++) {
       sum += weights[i]
       this.cumulative[i] = sum
+      if (weights[i] !== weights[0]) uniform = false
     }
+    this.uniform = uniform
   }
   sample(rng: Rng): number {
     const cum = this.cumulative
-    const x = rng.nextFloat() * cum[cum.length - 1]
+    // Equal weights: an exactly unbiased integer draw.
+    if (this.uniform) return rng.nextInt(cum.length)
+    // 53-bit uniform float keeps selection bias below 2^-53.
+    const u = (rng.nextU32() * 2097152 + (rng.nextU32() >>> 11)) / 9007199254740992
+    const x = u * cum[cum.length - 1]
     let lo = 0
     let hi = cum.length - 1
     while (lo < hi) {
@@ -958,13 +1045,20 @@ export interface NextCardResult {
  */
 export function nextCardAnalysis(
   req: EquityRequest,
-  opts: { exactEvalLimit?: number; trialsPerCard?: number; seed?: number; onCard?: (r: NextCardResult, index: number, total: number) => void } = {},
+  opts: {
+    exactEvalLimit?: number
+    trialsPerCard?: number
+    seed?: number
+    /** Restrict the analysis to these cards (for sharding across workers). */
+    cards?: readonly Card[]
+    onCard?: (r: NextCardResult, index: number, total: number) => void
+  } = {},
 ): NextCardResult[] {
   const prep = prepare(req)
   if (prep.board.length !== 3 && prep.board.length !== 4) return []
   const out: NextCardResult[] = []
   const rng = new Rng(opts.seed)
-  const cards = prep.deck
+  const cards = opts.cards ? prep.deck.filter((c) => opts.cards!.includes(c)) : prep.deck
   cards.forEach((card, index) => {
     let result: NextCardResult
     try {
