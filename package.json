@@ -15,7 +15,7 @@
     "build": "tsc -b && vite build && node scripts/postbuild.ts",
     "preview": "vite preview --port 4173 --strictPort",
     "typecheck": "tsc -b",
-    "lint": "oxlint --deny-warnings src tests scripts e2e",
+    "lint": "oxlint --deny-warnings src tests scripts e2e functions",
     "test": "vitest run",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",

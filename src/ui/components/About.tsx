@@ -43,6 +43,14 @@ export function About() {
           <a href="https://github.com/KarthikSubramanian07/Hookah-Pookah" rel="noopener">
             Source on GitHub
           </a>
+          {' · '}
+          <a href="/about">About</a>
+          {' · '}
+          <a href="/contact">Contact</a>
+          {' · '}
+          <a href="/privacy">Privacy</a>
+          {' · '}
+          <a href="/llms.txt">llms.txt</a>
         </span>
         <span className="about-credit">Evaluator ideas from OMPEval, Open PQL and poker-eval.</span>
       </div>

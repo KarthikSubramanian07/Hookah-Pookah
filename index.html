@@ -3,12 +3,13 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-    <title>Poker odds calculator: exact equity for Hold'em, Short Deck and PLO · Hookah Pookah</title>
+    <title>Hookah Pookah poker calculator: exact equity for Hold'em, Short Deck and PLO</title>
     <meta
       name="description"
-      content="Free poker odds calculator with exact enumeration and honest Monte Carlo error bars. Hold'em, Short Deck, PLO4 and PLO5 equities, weighted ranges, hand chances and every next card, all in your browser."
+      content="Hookah Pookah poker calculator with exact enumeration and honest Monte Carlo error bars. Hold'em, Short Deck, PLO4 and PLO5 equities, weighted ranges, hand chances and every next card, all in your browser."
     />
     <link rel="canonical" href="https://hookah-pookah.pages.dev/" />
+    <link rel="alternate" type="text/markdown" href="/index.md" />
     <meta name="theme-color" content="#11151c" />
     <meta name="color-scheme" content="dark" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
@@ -17,7 +18,7 @@
 
     <meta property="og:type" content="website" />
     <meta property="og:site_name" content="Hookah Pookah" />
-    <meta property="og:title" content="Hookah Pookah · poker odds, exact whenever the math allows" />
+    <meta property="og:title" content="Hookah Pookah poker calculator · exact whenever the math allows" />
     <meta
       property="og:description"
       content="Equity, hand chances and next-card odds for Hold'em, Short Deck and PLO. Exact enumeration or Monte Carlo with confidence intervals."
@@ -26,36 +27,97 @@
     <meta property="og:image" content="https://hookah-pookah.pages.dev/og.png" />
     <meta property="og:image:width" content="1200" />
     <meta property="og:image:height" content="630" />
-    <meta property="og:image:alt" content="Hookah Pookah poker odds calculator showing AhKh against a range with exact equities" />
+    <meta property="og:image:alt" content="Hookah Pookah poker calculator showing AhKh against a range with exact equities" />
     <meta name="twitter:card" content="summary_large_image" />
-    <meta name="twitter:title" content="Hookah Pookah · poker odds, exact whenever the math allows" />
+    <meta name="twitter:title" content="Hookah Pookah poker calculator · exact whenever the math allows" />
     <meta name="twitter:description" content="Equity, hand chances and next-card odds for Hold'em, Short Deck and PLO." />
     <meta name="twitter:image" content="https://hookah-pookah.pages.dev/og.png" />
 
     <script type="application/ld+json">
       {
         "@context": "https://schema.org",
-        "@type": "WebApplication",
-        "name": "Hookah Pookah",
-        "url": "https://hookah-pookah.pages.dev/",
-        "applicationCategory": "GameApplication",
-        "operatingSystem": "Any",
-        "browserRequirements": "Requires JavaScript and Web Workers",
-        "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" },
-        "description": "Poker odds and equity calculator for Texas Hold'em, Short Deck, PLO4 and PLO5 with exact enumeration, weighted ranges and Monte Carlo confidence intervals.",
-        "license": "https://opensource.org/licenses/MIT",
-        "codeRepository": "https://github.com/KarthikSubramanian07/Hookah-Pookah"
+        "@graph": [
+          {
+            "@type": "Organization",
+            "@id": "https://hookah-pookah.pages.dev/#organization",
+            "name": "Hookah Pookah",
+            "url": "https://hookah-pookah.pages.dev/",
+            "logo": "https://hookah-pookah.pages.dev/icon-512.png",
+            "email": "winnerkarthik07@gmail.com",
+            "telephone": "+1-415-800-0130",
+            "sameAs": ["https://github.com/KarthikSubramanian07/Hookah-Pookah"],
+            "contactPoint": {
+              "@type": "ContactPoint",
+              "contactType": "customer support",
+              "email": "winnerkarthik07@gmail.com",
+              "telephone": "+1-415-800-0130",
+              "url": "https://hookah-pookah.pages.dev/contact",
+              "availableLanguage": "English"
+            },
+            "address": {
+              "@type": "PostalAddress",
+              "streetAddress": "2261 Market Street STE 22462",
+              "addressLocality": "San Francisco",
+              "addressRegion": "CA",
+              "postalCode": "94114",
+              "addressCountry": "US"
+            }
+          },
+          {
+            "@type": "WebApplication",
+            "@id": "https://hookah-pookah.pages.dev/#webapp",
+            "name": "Hookah Pookah",
+            "url": "https://hookah-pookah.pages.dev/",
+            "applicationCategory": "GameApplication",
+            "operatingSystem": "Any",
+            "browserRequirements": "Requires JavaScript and Web Workers for the interactive calculator",
+            "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" },
+            "description": "Poker odds and equity calculator for Texas Hold'em, Short Deck, PLO4 and PLO5 with exact enumeration, weighted ranges and Monte Carlo confidence intervals.",
+            "license": "https://opensource.org/licenses/MIT",
+            "codeRepository": "https://github.com/KarthikSubramanian07/Hookah-Pookah",
+            "provider": { "@id": "https://hookah-pookah.pages.dev/#organization" }
+          }
+        ]
       }
     </script>
   </head>
   <body>
-    <div id="root"></div>
-    <noscript>
-      <main style="font-family: system-ui, sans-serif; max-width: 40rem; margin: 3rem auto; padding: 0 1rem; color: #e8ebf0; background: #11151c">
-        <h1>Hookah Pookah poker odds calculator</h1>
+    <div id="root">
+      <main class="prerender">
+        <h1>Hookah Pookah poker calculator</h1>
         <p>
-          Hookah Pookah calculates poker equity, win and tie odds, hand chances and next-card odds for Texas Hold'em, Short Deck, PLO4 and PLO5. It
-          runs entirely in your browser and needs JavaScript enabled.
+          Hookah Pookah is a free poker odds calculator for Texas Hold'em, Short Deck (6+ Hold'em), Pot Limit Omaha (PLO4)
+          and five-card Pot Limit Omaha (PLO5). It reports equity, win and tie odds, hand-category chances and next-card equity.
+          When the number of deals is small enough the answer is exact; larger spots use Monte Carlo sampling and always show a
+          95% confidence interval. Everything runs locally in your browser across available CPU cores.
+        </p>
+        <h2>Games you can calculate</h2>
+        <p>
+          Use <a href="/holdem">Texas Hold'em</a> for standard No Limit spots with optional weighted ranges.
+          Use <a href="/short-deck">Short Deck</a> for Triton or classic six-plus rankings.
+          Use <a href="/plo">PLO4</a> or <a href="/plo5">PLO5</a> when exactly two hole cards must combine with exactly three board cards.
+        </p>
+        <h2>How a spot is evaluated</h2>
+        <p>
+          Enter known hole cards, leave unknown seats empty to treat them as random, add a board from left to right, and optionally
+          mark dead cards. Advanced mode unlocks range text, precision targets and quick spot entry.
+          Shared links restore the full spot for humans and agents.
+        </p>
+        <h2>Verify the project</h2>
+        <p>
+          Read <a href="/about">About</a> for methodology and verification notes, <a href="/contact">Contact</a> for support,
+          <a href="/privacy">Privacy</a> for data handling, and <a href="/llms.txt">llms.txt</a> for agent guidance.
+        </p>
+        <p class="prerender-note">Enable JavaScript to use the interactive calculator on this page.</p>
+      </main>
+    </div>
+    <noscript>
+      <main class="prerender">
+        <h1>Hookah Pookah poker calculator</h1>
+        <p>
+          Hookah Pookah is a free poker odds calculator for Texas Hold'em, Short Deck, PLO4 and PLO5. It calculates equity,
+          win and tie odds, hand chances and next-card odds in your browser. Enable JavaScript to use the interactive table,
+          or open the static <a href="/about">About</a>, <a href="/contact">Contact</a> and <a href="/privacy">Privacy</a> pages.
         </p>
       </main>
     </noscript>
