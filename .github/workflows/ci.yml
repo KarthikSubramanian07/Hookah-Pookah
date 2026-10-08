@@ -94,7 +94,16 @@ jobs:
           echo "Production still serves ${live:-nothing}"; exit 1
       - name: Smoke test production
         run: |
-          for path in / /holdem /short-deck /plo /plo5 /robots.txt /sitemap.xml /og.png; do
+          for path in / /holdem /short-deck /plo /plo5 /about /contact /privacy /robots.txt /sitemap.xml /llms.txt /og.png /index.md; do
             code=$(curl -s -o /dev/null -w '%{http_code}' "https://hookah-pookah.pages.dev$path")
             echo "$path $code"; test "$code" = 200
           done
+          code=$(curl -s -o /dev/null -w '%{http_code}' "https://hookah-pookah.pages.dev/some-path-that-does-not-exist")
+          echo "missing $code"; test "$code" = 404
+          md_type=$(curl -sS -D - -o /tmp/hp-md.txt -H 'Accept: text/markdown' "https://hookah-pookah.pages.dev/" | tr -d '\r' | awk -F': ' 'tolower($1)=="content-type"{print $2; exit}')
+          echo "markdown content-type: $md_type"
+          echo "$md_type" | grep -qi 'text/markdown'
+          test "$(wc -c </tmp/hp-md.txt)" -gt 200
+          vary=$(curl -sS -I -H 'Accept: text/markdown' "https://hookah-pookah.pages.dev/" | tr -d '\r' | awk -F': ' 'tolower($1)=="vary"{print $2; exit}')
+          echo "vary: $vary"
+          echo "$vary" | grep -qi Accept
