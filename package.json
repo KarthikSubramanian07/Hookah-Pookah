@@ -4,7 +4,7 @@
   "version": "1.0.0",
   "description": "Exact-enumeration and Monte Carlo poker odds engine for Hold'em, Short Deck and PLO.",
   "license": "MIT",
-  "author": "Karthik Subramanian <winnerkarthik07@gmail.com>",
+  "author": "Karthik Subramanian",
   "type": "module",
   "engines": {
     "node": ">=22.18"
