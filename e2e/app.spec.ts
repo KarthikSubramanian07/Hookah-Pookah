@@ -225,10 +225,15 @@ test.describe('site', () => {
     const robots = await request.get('/robots.txt')
     expect(await robots.text()).toContain('Sitemap: https://hookah-pookah.pages.dev/sitemap.xml')
     const sitemap = await request.get('/sitemap.xml')
-    expect(await sitemap.text()).toContain('<loc>https://hookah-pookah.pages.dev/short-deck</loc>')
+    const sitemapBody = await sitemap.text()
+    expect(sitemapBody).toContain('<loc>https://hookah-pookah.pages.dev/short-deck</loc>')
+    expect(sitemapBody).toContain('<loc>https://hookah-pookah.pages.dev/about</loc>')
+    expect(sitemapBody).toContain('<loc>https://hookah-pookah.pages.dev/contact</loc>')
+    expect(sitemapBody).toContain('<loc>https://hookah-pookah.pages.dev/privacy</loc>')
     const home = await request.get('/holdem')
     expect(home.headers()['content-security-policy']).toContain("worker-src 'self'")
     expect(home.headers()['x-content-type-options']).toBe('nosniff')
+    expect(home.headers()['vary'] || '').toMatch(/Accept/i)
   })
 
   test('no console errors or CSP violations during a full session', async ({ page }) => {

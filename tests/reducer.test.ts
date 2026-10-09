@@ -1,7 +1,9 @@
 import { describe, expect, it } from 'vitest'
 import { parseCard, parseCards } from '../src/engine/cards.ts'
 import { defaultSpot } from '../src/state/spot.ts'
-import { PAGES, renderPage, renderSitemap } from '../scripts/postbuild.ts'
+import { GAME_PAGES, renderSitemap } from '../scripts/postbuild.ts'
+import { applyPageMeta } from '../scripts/site/html.ts'
+import type { PageCopy } from '../scripts/site/content.ts'
 import { type SpotState, applyAction, spotReducer } from '../src/ui/useSpot.ts'
 
 const initial = (): SpotState => ({ spot: defaultSpot('holdem'), past: [], future: [], byVariant: {}, lastAt: 0 })
@@ -114,19 +116,30 @@ describe('spot reducer', () => {
 
 describe('post-build SEO pages', () => {
   const template = `<title>x</title><meta name="description" content="d" /><link rel="canonical" href="c" /><meta property="og:url" content="u" /><meta property="og:title" content="t" /><meta property="og:description" content="d" /><meta name="twitter:title" content="t" /><meta name="twitter:description" content="d" />`
+  const asCopy = (page: (typeof GAME_PAGES)[number]): PageCopy => ({
+    path: page.path,
+    title: page.title,
+    description: page.description,
+    ogTitle: `Hookah Pookah · ${page.ogTitle}`,
+    markdown: '',
+    htmlBody: '',
+  })
   it('rewrites title, description, canonical and social tags per route', () => {
-    for (const page of PAGES) {
-      const html = renderPage(template, page)
+    for (const page of GAME_PAGES) {
+      const html = applyPageMeta(template, asCopy(page))
       expect(html).toContain(`<link rel="canonical" href="https://hookah-pookah.pages.dev${page.path}" />`)
       expect(html).toContain(`<meta property="og:url" content="https://hookah-pookah.pages.dev${page.path}" />`)
       expect(html).not.toContain('<title>x</title>')
       expect(html).not.toContain('content="d"')
     }
-    expect(renderPage(template, PAGES[1])).toContain("Short Deck (6+) Hold'em")
+    expect(applyPageMeta(template, asCopy(GAME_PAGES[1]))).toContain('Short Deck')
   })
   it('lists every route in the sitemap', () => {
     const xml = renderSitemap('2026-09-14')
-    for (const page of PAGES) expect(xml).toContain(`<loc>https://hookah-pookah.pages.dev${page.path}</loc>`)
+    for (const page of GAME_PAGES) expect(xml).toContain(`<loc>https://hookah-pookah.pages.dev${page.path}</loc>`)
+    expect(xml).toContain('/about')
+    expect(xml).toContain('/contact')
+    expect(xml).toContain('/privacy')
     expect(xml).toContain('<lastmod>2026-09-14</lastmod>')
   })
 })
