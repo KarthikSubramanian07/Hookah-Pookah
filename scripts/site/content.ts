@@ -2,31 +2,20 @@
 
 export const SITE = 'https://hookah-pookah.pages.dev'
 export const SITE_NAME = 'Hookah Pookah'
-export const SUPPORT_EMAIL = 'winnerkarthik07@gmail.com'
-/**
- * Public voice line for Organization/Contact markup.
- * Replace with a number you control before advertising phone support externally.
- */
-export const SUPPORT_PHONE = '+1-415-800-0130'
 export const GITHUB_REPO = 'https://github.com/KarthikSubramanian07/Hookah-Pookah'
+export const ISSUES_URL = `${GITHUB_REPO}/issues`
+export const SECURITY_URL = `${GITHUB_REPO}/security/advisories/new`
 
 export interface TrustAddress {
-  streetAddress: string
   addressLocality: string
   addressRegion: string
-  postalCode: string
   addressCountry: string
 }
 
-/**
- * Postal identity for Organization/Contact markup.
- * Replace with a mailing address you control (CMRA, registered agent, or office).
- */
+/** City-level postal identity for Organization/Contact markup. No street, email or phone is published. */
 export const ORG_ADDRESS: TrustAddress = {
-  streetAddress: '2261 Market Street STE 22462',
-  addressLocality: 'San Francisco',
+  addressLocality: 'Berkeley',
   addressRegion: 'CA',
-  postalCode: '94114',
   addressCountry: 'US',
 }
 
@@ -169,23 +158,25 @@ const CONTACT_MARKDOWN = `# Contact Hookah Pookah
 
 Use these channels for product questions, bug reports and verification requests about the Hookah Pookah poker calculator.
 
-## Support email
+## Questions and bug reports
 
-Email [${SUPPORT_EMAIL}](mailto:${SUPPORT_EMAIL}) for calculator questions, accuracy reports and privacy requests. Include the share URL of the spot when reporting a numerical disagreement.
+Open an issue on [GitHub](${ISSUES_URL}) for calculator questions, accuracy reports and feature requests. Include the share URL of the spot when reporting a numerical disagreement: a share link reproduces the full calculation exactly.
 
-## Phone
+## Security reports
 
-Telephone support: ${SUPPORT_PHONE}. Email is preferred for spots and logs because a share link reproduces the full calculation.
+Report vulnerabilities privately through [GitHub private vulnerability reporting](${SECURITY_URL}) rather than in a public issue, with steps to reproduce.
 
-## Mailing address
+## Privacy requests
 
-${ORG_ADDRESS.streetAddress}
-${ORG_ADDRESS.addressLocality}, ${ORG_ADDRESS.addressRegion} ${ORG_ADDRESS.postalCode}
-${ORG_ADDRESS.addressCountry}
+The calculator keeps no account data on a server. For a privacy question, open an issue titled "Privacy request" and leave anything sensitive out of it; the maintainer will follow up privately.
 
-## Source and issues
+## Location
 
-Public development happens in the [GitHub repository](${GITHUB_REPO}). Prefer GitHub issues for reproducible engine bugs; prefer email for private or account-adjacent requests.
+Hookah Pookah is maintained in ${ORG_ADDRESS.addressLocality}, California, United States.
+
+## Source
+
+Public development happens in the [GitHub repository](${GITHUB_REPO}), including the engine, its tests and releases.
 
 ## Related pages
 
@@ -203,22 +194,22 @@ const CONTACT_HTML = `
     and privacy requests using the channels below. When reporting a disputed equity number, include the share URL so the spot
     can be reproduced exactly.
   </p>
-  <h2>Email</h2>
+  <h2>Questions and bug reports</h2>
   <p>
-    Write to <a href="mailto:${SUPPORT_EMAIL}">${SUPPORT_EMAIL}</a>. This is the primary support channel for calculator help,
-    verification questions and data requests described on the privacy page.
+    Open an issue on <a href="${ISSUES_URL}">GitHub</a>. This is the primary support channel for calculator help, accuracy
+    reports and feature requests. A share URL reproduces the full calculation, so include one with any disputed number.
   </p>
-  <h2>Phone</h2>
+  <h2>Security reports</h2>
   <p>
-    Telephone: <a href="tel:${SUPPORT_PHONE.replace(/-/g, '')}">${SUPPORT_PHONE}</a>. Email is usually faster for hand histories
-    and share links, but phone contact is available for urgent product questions.
+    Report vulnerabilities privately through <a href="${SECURITY_URL}">GitHub private vulnerability reporting</a> rather than
+    in a public issue, and include the steps to reproduce.
   </p>
-  <h2>Mailing address</h2>
+  <h2>Privacy requests</h2>
   <p>
-    ${ORG_ADDRESS.streetAddress}<br />
-    ${ORG_ADDRESS.addressLocality}, ${ORG_ADDRESS.addressRegion} ${ORG_ADDRESS.postalCode}<br />
-    ${ORG_ADDRESS.addressCountry}
+    Open an issue titled "Privacy request" and leave anything sensitive out of it; the maintainer will follow up privately.
   </p>
+  <h2>Location</h2>
+  <p>Hookah Pookah is maintained in ${ORG_ADDRESS.addressLocality}, California, United States.</p>
   <h2>Public repository</h2>
   <p>
     Engine source, tests and releases live at <a href="${GITHUB_REPO}">${GITHUB_REPO}</a>. For reproducible bugs, open an issue
@@ -249,7 +240,7 @@ The site is hosted on Cloudflare Pages. Standard request logs (such as IP addres
 
 ## Contact and analytics
 
-Email you send to ${SUPPORT_EMAIL} is stored in the recipient mailbox so the project can respond. The calculator UI does not embed third-party advertising trackers. If analytics or error reporting are added later, this policy will be updated before they collect personal data beyond ordinary server logs.
+Issues and reports you open on GitHub are stored by GitHub under its own privacy policy. The calculator UI does not embed third-party advertising trackers. If analytics or error reporting are added later, this policy will be updated before they collect personal data beyond ordinary server logs.
 
 ## Children's privacy
 
@@ -261,7 +252,7 @@ Material changes to this policy will be reflected on this page with an updated e
 
 ## Contact
 
-Privacy questions: [${SUPPORT_EMAIL}](mailto:${SUPPORT_EMAIL}). Mailing address: ${ORG_ADDRESS.streetAddress}, ${ORG_ADDRESS.addressLocality}, ${ORG_ADDRESS.addressRegion} ${ORG_ADDRESS.postalCode}, ${ORG_ADDRESS.addressCountry}. Phone: ${SUPPORT_PHONE}.
+Privacy questions: open an issue titled "Privacy request" on [GitHub](${ISSUES_URL}), or see the [Contact](${SITE}/contact) page. Hookah Pookah is maintained in ${ORG_ADDRESS.addressLocality}, ${ORG_ADDRESS.addressRegion}, ${ORG_ADDRESS.addressCountry}.
 
 Effective date: 2026-10-08.
 `
@@ -285,16 +276,16 @@ const PRIVACY_HTML = `
     Interface preferences such as advanced mode may be saved in local storage on your device. Clearing site data in your
     browser removes those preferences. Calculator state is not uploaded to Hookah Pookah servers as part of a normal equity run.
   </p>
-  <h2>Hosting and email</h2>
+  <h2>Hosting and issues</h2>
   <p>
-    The site is served via Cloudflare Pages, which may retain standard request logs for security and reliability. Messages you
-    send to <a href="mailto:${SUPPORT_EMAIL}">${SUPPORT_EMAIL}</a> are kept so the project can reply. This product does not sell
+    The site is served via Cloudflare Pages, which may retain standard request logs for security and reliability. Issues and
+    reports you open on GitHub are stored by GitHub under its own privacy policy. This product does not sell
     personal information and does not use the calculator UI for third-party advertising trackers.
   </p>
   <h2>Contact for privacy requests</h2>
   <p>
-    Email ${SUPPORT_EMAIL}, call ${SUPPORT_PHONE}, or write to ${ORG_ADDRESS.streetAddress},
-    ${ORG_ADDRESS.addressLocality}, ${ORG_ADDRESS.addressRegion} ${ORG_ADDRESS.postalCode}, ${ORG_ADDRESS.addressCountry}.
+    Open an issue titled "Privacy request" on <a href="${ISSUES_URL}">GitHub</a> and leave anything sensitive out of it; the
+    maintainer will follow up privately. Hookah Pookah is maintained in ${ORG_ADDRESS.addressLocality}, ${ORG_ADDRESS.addressRegion}.
     See <a href="/contact">Contact</a> and <a href="/about">About</a> for more project context. Effective date: 8 October 2026.
   </p>
 </main>
@@ -350,7 +341,7 @@ export const TRUST_PAGES: PageCopy[] = [
   {
     path: '/contact',
     title: 'Contact Hookah Pookah · poker calculator support',
-    description: `Email ${SUPPORT_EMAIL}, call ${SUPPORT_PHONE}, or write to the Hookah Pookah mailing address for poker calculator support and verification questions.`,
+    description: 'Reach the Hookah Pookah maintainer through GitHub issues for poker calculator support, accuracy reports and privacy requests, or report security issues privately.',
     ogTitle: 'Contact Hookah Pookah',
     markdown: CONTACT_MARKDOWN,
     htmlBody: CONTACT_HTML,
@@ -433,23 +424,17 @@ export function organizationJsonLd(): Record<string, unknown> {
     name: SITE_NAME,
     url: `${SITE}/`,
     logo: `${SITE}/icon-512.png`,
-    email: SUPPORT_EMAIL,
-    telephone: SUPPORT_PHONE,
     sameAs: [GITHUB_REPO],
     contactPoint: {
       '@type': 'ContactPoint',
       contactType: 'customer support',
-      email: SUPPORT_EMAIL,
-      telephone: SUPPORT_PHONE,
       url: `${SITE}/contact`,
       availableLanguage: 'English',
     },
     address: {
       '@type': 'PostalAddress',
-      streetAddress: ORG_ADDRESS.streetAddress,
       addressLocality: ORG_ADDRESS.addressLocality,
       addressRegion: ORG_ADDRESS.addressRegion,
-      postalCode: ORG_ADDRESS.postalCode,
       addressCountry: ORG_ADDRESS.addressCountry,
     },
   }

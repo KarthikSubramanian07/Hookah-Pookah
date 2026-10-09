@@ -80,7 +80,22 @@ describe('agent surface artifacts', () => {
       expect(HOME_PAGE.markdown.length).toBeGreaterThan(200)
       const org = organizationJsonLd()
       expect(org.contactPoint).toMatchObject({ contactType: 'customer support' })
-      expect(org.address).toMatchObject({ '@type': 'PostalAddress' })
+      expect(org.address).toMatchObject({ '@type': 'PostalAddress', addressLocality: 'Berkeley', addressRegion: 'CA' })
+      expect(org).not.toHaveProperty('email')
+      expect(org).not.toHaveProperty('telephone')
+      expect(org.contactPoint).not.toHaveProperty('email')
+      expect(org.contactPoint).not.toHaveProperty('telephone')
+
+      const published = [home, homeMd, llms, notFound, viteShell]
+      for (const page of TRUST_PAGES) {
+        published.push(readFileSync(join(dir, `${page.path.slice(1)}.html`), 'utf8'))
+        published.push(readFileSync(join(dir, `${page.path.slice(1)}.md`), 'utf8'))
+      }
+      for (const text of published) {
+        for (const banned of ['mailto:', 'tel:', '@gmail', '"email"', '"telephone"', 'Market Street']) {
+          expect(text).not.toContain(banned)
+        }
+      }
     } finally {
       rmSync(dir, { recursive: true, force: true })
     }
