@@ -12,6 +12,8 @@ test('mobile layout fits the viewport and the picker becomes a bottom sheet', as
   await page.getByRole('button', { name: /^Turn: empty/ }).click()
   const picker = page.getByRole('dialog', { name: /Pick a card/ })
   await expect(picker).toBeVisible()
+  // The picker pops in from 4px above; measure where it settles, not mid-animation.
+  await picker.evaluate((el) => Promise.all(el.getAnimations().map((a) => a.finished)))
   const box = await picker.boundingBox()
   const viewport = page.viewportSize()!
   expect(Math.round(box!.y + box!.height)).toBeGreaterThanOrEqual(viewport.height - 2)
