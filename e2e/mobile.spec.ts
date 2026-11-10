@@ -17,6 +17,6 @@ test('mobile layout fits the viewport and the picker becomes a bottom sheet', as
   const box = await picker.boundingBox()
   const viewport = page.viewportSize()!
   expect(Math.round(box!.y + box!.height)).toBeGreaterThanOrEqual(viewport.height - 2)
-  await picker.getByRole('gridcell', { name: /^Two of spades$/ }).tap()
+  await picker.getByRole('gridcell', { name: /^Two of spades/ }).tap()
   await expect(page).toHaveURL(/b=Jh7h2c2s/)
 })

@@ -1,7 +1,7 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import type { Card } from '../../engine/cards.ts'
 import { RANK_CHARS, SUIT_CHARS, SUIT_NAMES, makeCard } from '../../engine/cards.ts'
-import { cardName } from '../dom.ts'
+import { cardFace, cardName } from '../dom.ts'
 import { PlayingCard, SuitGlyph } from './PlayingCard.tsx'
 
 interface Props {
@@ -149,10 +149,10 @@ export function CardPicker({ anchor, title, current, minRank, used, onPick, onCl
                   data-used={owner !== undefined && !isCurrent}
                   data-current={isCurrent}
                   tabIndex={-1}
-                  aria-label={`${cardName(card)}${owner && !isCurrent ? `, in use by ${owner}, pick to move it here` : ''}`}
+                  aria-label={`${cardName(card)}${owner && !isCurrent ? `, in use by ${owner}, pick to move it here` : ''}. ${cardFace(card)}${owner && !isCurrent ? ` ${owner}` : ''}`}
                   onClick={() => onPick(card)}
                 >
-                  <PlayingCard card={card} size="sm" />
+                  <PlayingCard card={card} size="sm" decorative />
                   {owner !== undefined && !isCurrent && <span className="picker-owner">{owner}</span>}
                 </button>
               )

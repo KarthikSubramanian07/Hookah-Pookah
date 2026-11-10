@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import type { Card } from '../../engine/cards.ts'
 import { RANK_CHARS, SUIT_CHARS, makeCard } from '../../engine/cards.ts'
-import { cardName, slotId } from '../dom.ts'
+import { cardFace, cardName, slotId } from '../dom.ts'
 import { PlayingCard } from './PlayingCard.tsx'
 
 interface Props {
@@ -66,6 +66,10 @@ export function CardSlot({ slotKey, group, card, label, minRank, active, flash, 
     }
   }
 
+  const pendingFace = pendingRank !== null ? (RANK_CHARS[pendingRank] === 'T' ? '10' : RANK_CHARS[pendingRank]) : null
+  const visibleFace = card !== null ? cardFace(card) : (pendingFace ?? '+')
+  const stateLabel = card === null ? 'empty' : cardName(card)
+
   return (
     <button
       type="button"
@@ -74,17 +78,17 @@ export function CardSlot({ slotKey, group, card, label, minRank, active, flash, 
       data-slot={slotKey}
       data-slot-group={group}
       data-empty={card === null}
-      aria-label={`${label}: ${card === null ? 'empty' : cardName(card)}. Type a rank and suit, or press Enter to pick.`}
+      aria-label={`${label}: ${stateLabel}. ${visibleFace}. Type a rank and suit, or press Enter to pick.`}
       aria-haspopup="dialog"
       onClick={(e) => onOpen(e.currentTarget)}
       onKeyDown={onKeyDown}
       onBlur={() => setPendingRank(null)}
     >
       {card !== null ? (
-        <PlayingCard card={card} size={size === 'sm' ? 'sm' : 'md'} />
+        <PlayingCard card={card} size={size === 'sm' ? 'sm' : 'md'} decorative />
       ) : (
         <span className="slot-empty" aria-hidden="true">
-          {pendingRank !== null ? <span className="slot-pending mono">{RANK_CHARS[pendingRank] === 'T' ? '10' : RANK_CHARS[pendingRank]}</span> : '+'}
+          {pendingFace !== null ? <span className="slot-pending mono">{pendingFace}</span> : '+'}
         </span>
       )}
     </button>
