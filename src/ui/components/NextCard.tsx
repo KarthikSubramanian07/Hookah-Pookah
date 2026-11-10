@@ -110,6 +110,16 @@ export function NextCard({ variant, boardLength, players, equity, used, advanced
               const has = results.has(card)
               const value = eq?.[who]
               const delta = value !== undefined && base !== undefined ? (value - base) * 100 : undefined
+              const ownerMark = owner
+                ? owner === 'Board'
+                  ? 'B'
+                  : owner === 'Dead'
+                    ? 'D'
+                    : owner === 'You'
+                      ? 'Y'
+                      : owner.replace('Opp ', 'O')
+                : null
+              const pctMark = value !== undefined ? String(Math.round(value * 100)) : null
               return (
                 <button
                   key={card}
@@ -121,14 +131,14 @@ export function NextCard({ variant, boardLength, players, equity, used, advanced
                   onClick={() => onDeal(card)}
                   aria-label={
                     owner
-                      ? `${cardName(card)} is already in play`
+                      ? `${cardName(card)} is already in play. ${ownerMark}`
                       : value !== undefined
-                        ? `${cardName(card)}: ${(value * 100).toFixed(1)}% to win, ${delta! >= 0 ? 'up' : 'down'} ${Math.abs(delta!).toFixed(1)} points. Deal it.`
+                        ? `${cardName(card)}: ${(value * 100).toFixed(1)}% to win, ${delta! >= 0 ? 'up' : 'down'} ${Math.abs(delta!).toFixed(1)} points. ${pctMark}. Deal it.`
                         : `${cardName(card)}: checking`
                   }
                   title={value !== undefined ? `${cardName(card)}: ${(value * 100).toFixed(1)}% (${delta! >= 0 ? '+' : ''}${delta!.toFixed(1)})` : undefined}
                 >
-                  {owner ? <span className="nextcard-owner">{owner === 'Board' ? 'B' : owner === 'Dead' ? 'D' : owner === 'You' ? 'Y' : owner.replace('Opp ', 'O')}</span> : value !== undefined ? <span className="mono">{Math.round(value * 100)}</span> : <span className="nextcard-wait" aria-hidden="true" />}
+                  {ownerMark ? <span className="nextcard-owner">{ownerMark}</span> : pctMark ? <span className="mono">{pctMark}</span> : <span className="nextcard-wait" aria-hidden="true" />}
                 </button>
               )
             })}

@@ -1,7 +1,13 @@
 import type { Card } from '../engine/cards.ts'
-import { RANK_NAMES, SUIT_NAMES, rankOf, suitOf } from '../engine/cards.ts'
+import { RANK_CHARS, RANK_NAMES, SUIT_NAMES, SUIT_SYMBOLS, rankOf, suitOf } from '../engine/cards.ts'
 
 export const cardName = (card: Card): string => `${RANK_NAMES[rankOf(card)]} of ${SUIT_NAMES[suitOf(card)]}`
+
+/** Visible face text drawn on a card (e.g. "A♠", "10♥") for label-in-name. */
+export const cardFace = (card: Card): string => {
+  const rank = RANK_CHARS[rankOf(card)]
+  return `${rank === 'T' ? '10' : rank}${SUIT_SYMBOLS[suitOf(card)]}`
+}
 
 export const slotId = (key: string) => `slot-${key}`
 

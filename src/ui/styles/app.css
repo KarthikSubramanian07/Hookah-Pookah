@@ -8,6 +8,26 @@
   flex-direction: column;
 }
 
+.skip-link {
+  position: absolute;
+  top: 0;
+  left: 0;
+  z-index: calc(var(--z-sticky) + 1);
+  padding: var(--s2) var(--s3);
+  background: var(--ink);
+  color: var(--bg);
+  font-weight: 600;
+  text-decoration: none;
+  border-radius: 0 0 var(--radius-sm) 0;
+  transform: translateY(-120%);
+}
+
+.skip-link:focus {
+  transform: translateY(0);
+  outline: 2px solid var(--cobalt);
+  outline-offset: 2px;
+}
+
 .topbar {
   position: sticky;
   top: 0;
@@ -1338,7 +1358,7 @@ details.potodds[open] > summary::after {
 
 .dual-slider {
   position: relative;
-  height: 1.25rem;
+  height: 1.5rem; /* ≥24px touch target (WCAG 2.5.8) */
 }
 
 .dual-slider::before {
@@ -1372,8 +1392,8 @@ details.potodds[open] > summary::after {
 }
 
 .dual-slider input::-webkit-slider-thumb {
-  width: 1.1rem;
-  height: 1.1rem;
+  width: 1.5rem;
+  height: 1.5rem;
   border: 2px solid var(--bg);
   border-radius: 50%;
   background: var(--ink);
@@ -1384,8 +1404,8 @@ details.potodds[open] > summary::after {
 }
 
 .dual-slider input::-moz-range-thumb {
-  width: 1rem;
-  height: 1rem;
+  width: 1.5rem;
+  height: 1.5rem;
   border: 2px solid var(--bg);
   border-radius: 50%;
   background: var(--ink);
@@ -1606,6 +1626,8 @@ details.potodds[open] > summary::after {
 .nextcard-grid {
   display: grid;
   gap: 3px;
+  min-width: min(100%, calc(1.5rem + 13 * 1.5rem));
+  overflow-x: auto;
 }
 
 .nextcard-row {
@@ -1616,19 +1638,23 @@ details.potodds[open] > summary::after {
   color: var(--muted);
   font-size: var(--text-xs);
   text-align: center;
+  min-width: 1.5rem;
 }
 
 .nextcard-suit {
   display: grid;
   place-items: center;
   padding-right: 4px;
+  min-width: 1.5rem;
+  min-height: 1.5rem;
 }
 
 .nextcard-cell {
   display: grid;
   place-items: center;
-  aspect-ratio: 0.9;
-  min-width: 0;
+  aspect-ratio: 1;
+  min-width: 1.5rem; /* ≥24px touch target (WCAG 2.5.8) */
+  min-height: 1.5rem;
   padding: 0;
   border: 1px solid var(--line-soft);
   border-radius: 5px;

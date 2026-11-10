@@ -243,6 +243,9 @@ export function App() {
 
   return (
     <div className="app">
+      <a className="skip-link" href="#main">
+        Skip to main content
+      </a>
       <header className="topbar">
         <a className="brand" href="/" aria-label="Hookah Pookah home">
           <span className="brand-mark" aria-hidden="true">
@@ -288,7 +291,7 @@ export function App() {
         </div>
       </header>
 
-      <main className={`layout${advanced ? ' is-advanced' : ' is-simple'}`}>
+      <main id="main" className={`layout${advanced ? ' is-advanced' : ' is-simple'}`} tabIndex={-1}>
         <div className="table-col">
           <div className="intro">
             <h1 className="headline">What are the chances?</h1>
